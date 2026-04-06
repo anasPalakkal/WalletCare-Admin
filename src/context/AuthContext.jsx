@@ -15,14 +15,16 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = (token, adminData) => {
-    localStorage.setItem("adminToken", token);
+  const login = (accessToken, refreshToken, adminData) => {
+    localStorage.setItem("adminToken", accessToken);
+    localStorage.setItem("adminRefreshToken", refreshToken);
     localStorage.setItem("adminData", JSON.stringify(adminData));
     setAdmin(adminData);
   };
 
   const logout = () => {
     localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminRefreshToken");
     localStorage.removeItem("adminData");
     setAdmin(null);
   };

@@ -11,19 +11,19 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
       const res = await api.post("/auth/login", { email, password });
-      const { accessToken, user } = res.data;
+      const { accessToken, refreshToken, user } = res.data;
       if (user.role !== "admin") {
         setError("Access denied. Admins only.");
+        setLoading(false);
         return;
       }
-      login(accessToken, user);
+      login(accessToken, refreshToken, user);
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Login failed. Try again.");
@@ -31,7 +31,6 @@ const Login = () => {
       setLoading(false);
     }
   };
-
   return (
     <div style={{
       minHeight: "100vh", display: "flex",
