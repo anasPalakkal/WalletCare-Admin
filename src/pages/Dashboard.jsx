@@ -16,6 +16,12 @@ ChartJS.register(
   Tooltip, Legend
 );
 
+const formatMonthLabel = (id) => {
+  if (!id) return "";
+  const date = new Date(id.year, id.month - 1);
+  return date.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+};
+
 const StatCard = ({ label, value, color }) => (
   <div className="card" style={{ borderTop: `3px solid ${color}` }}>
     <div style={{
@@ -103,7 +109,7 @@ const Dashboard = () => {
   );
 
   const userGrowthData = {
-    labels: userAnalytics?.userGrowth?.map((d) => d._id) || [],
+    labels: userAnalytics?.userGrowth?.map((d) => formatMonthLabel(d._id)) || [],
     datasets: [{
       data: userAnalytics?.userGrowth?.map((d) => d.count) || [],
       backgroundColor: "#4f46e5",
@@ -134,7 +140,7 @@ const Dashboard = () => {
   };
 
   const feedbackMonthData = {
-    labels: feedbackAnalytics?.feedbackPerMonth?.map((d) => d._id) || [],
+    labels: feedbackAnalytics?.feedbackPerMonth?.map((d) => formatMonthLabel(d._id)) || [],
     datasets: [{
       data: feedbackAnalytics?.feedbackPerMonth?.map((d) => d.count) || [],
       backgroundColor: "#10b981",
