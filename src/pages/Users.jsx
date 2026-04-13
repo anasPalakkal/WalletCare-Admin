@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
+import useWindowSize from "../hooks/useWindowSize";
 
 const Users = () => {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ const Users = () => {
   const [confirm, setConfirm] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
+  const { isMobile, isTablet } = useWindowSize();
 
   useEffect(() => {
     fetchUsers();
@@ -39,9 +41,9 @@ const Users = () => {
   const handleAction = async (action, userId) => {
     setActionLoading(userId + action);
     try {
-      if (action === "ban")     await api.patch(`/admin/users/${userId}/ban`);
-      if (action === "unban")   await api.patch(`/admin/users/${userId}/unban`);
-      if (action === "logout")  await api.post(`/admin/users/${userId}/logout`);
+      if (action === "ban") await api.patch(`/admin/users/${userId}/ban`);
+      if (action === "unban") await api.patch(`/admin/users/${userId}/unban`);
+      if (action === "logout") await api.post(`/admin/users/${userId}/logout`);
       if (action === "restore") await api.patch(`/admin/users/${userId}/restore`);
       await fetchUsers();
     } catch (err) {
@@ -57,11 +59,11 @@ const Users = () => {
       u.name?.toLowerCase().includes(search.toLowerCase()) ||
       u.email?.toLowerCase().includes(search.toLowerCase());
 
-    if (filter === "all")       return matchSearch;
-    if (filter === "active")    return matchSearch && !u.isBanned && !u.scheduledDeletionAt;
-    if (filter === "banned")    return matchSearch && u.isBanned;
+    if (filter === "all") return matchSearch;
+    if (filter === "active") return matchSearch && !u.isBanned && !u.scheduledDeletionAt;
+    if (filter === "banned") return matchSearch && u.isBanned;
     if (filter === "scheduled") return matchSearch && u.scheduledDeletionAt;
-    if (filter === "premium")   return matchSearch && u.isPremium;
+    if (filter === "premium") return matchSearch && u.isPremium;
     return matchSearch;
   });
 
@@ -72,19 +74,19 @@ const Users = () => {
   );
 
   const counts = {
-    all:       users.length,
-    active:    users.filter((u) => !u.isBanned && !u.scheduledDeletionAt).length,
-    banned:    users.filter((u) => u.isBanned).length,
+    all: users.length,
+    active: users.filter((u) => !u.isBanned && !u.scheduledDeletionAt).length,
+    banned: users.filter((u) => u.isBanned).length,
     scheduled: users.filter((u) => u.scheduledDeletionAt).length,
-    premium:   users.filter((u) => u.isPremium).length,
+    premium: users.filter((u) => u.isPremium).length,
   };
 
   const filterTabs = [
-    { key: "all",       label: "All",               color: "#4f46e5" },
-    { key: "active",    label: "Active",             color: "#10b981" },
-    { key: "banned",    label: "Banned",             color: "#ef4444" },
+    { key: "all", label: "All", color: "#4f46e5" },
+    { key: "active", label: "Active", color: "#10b981" },
+    { key: "banned", label: "Banned", color: "#ef4444" },
     { key: "scheduled", label: "Scheduled Deletion", color: "#14b8a6" },
-    { key: "premium",   label: "Premium",            color: "#8b5cf6" },
+    { key: "premium", label: "Premium", color: "#8b5cf6" },
   ];
 
   const formatDate = (date) =>
@@ -121,7 +123,7 @@ const Users = () => {
         {/* Stats Row */}
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(5, minmax(0,1fr))",
+          gridTemplateColumns: isMobile ? "repeat(2, minmax(0,1fr))" : isTablet ? "repeat(3, minmax(0,1fr))" : "repeat(5, minmax(0,1fr))",
           gap: "10px", marginBottom: "20px",
         }}>
           {filterTabs.map((tab) => (

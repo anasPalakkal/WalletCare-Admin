@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
+import useWindowSize from "../hooks/useWindowSize";
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -53,6 +54,7 @@ const SectionTitle = ({ title, sub }) => (
 );
 
 const Analytics = () => {
+  const { isMobile, isTablet } = useWindowSize();
   const [stats, setStats] = useState(null);
   const [userAnalytics, setUserAnalytics] = useState(null);
   const [feedbackAnalytics, setFeedbackAnalytics] = useState(null);
@@ -141,7 +143,11 @@ const Analytics = () => {
   const categoryColors = ["#4f46e5","#10b981","#f59e0b","#ef4444","#8b5cf6","#14b8a6"];
   const goalColors     = ["#10b981","#4f46e5","#ef4444"];
 
-  // ── Chart data ──────────────────────────────────────────────────────────────
+  const col4 = isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0,1fr))" : "repeat(4, minmax(0,1fr))";
+  const col2 = isMobile ? "1fr" : "1fr 1fr";
+  const colWide = isMobile ? "1fr" : "1.5fr 1fr";
+  const colWideRev = isMobile ? "1fr" : "1fr 1.5fr";
+  const colFeedback = isMobile ? "1fr" : "1fr 2fr";
 
   const userGrowthData = {
     labels: userAnalytics?.userGrowth?.map((d) => formatMonthLabel(d._id)) || [],
@@ -250,14 +256,14 @@ const Analytics = () => {
 
         {/* ── Section 1: User Overview ── */}
         <SectionTitle title="User Overview" sub="Registration, status and subscription breakdown" />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Users"    value={stats?.totalUsers}    sub={`${activePercent}% active`}      color="#4f46e5" />
-          <SummaryCard label="Active Users"   value={stats?.activeUsers}   sub={`${activePercent}% of total`}    color="#10b981" />
-          <SummaryCard label="Banned Users"   value={stats?.bannedUsers}   sub="Currently blocked"               color="#ef4444" />
-          <SummaryCard label="Premium Users"  value={stats?.premiumUsers}  sub={`${premiumPercent}% of total`}   color="#8b5cf6" />
+        <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
+          <SummaryCard label="Total Users"   value={stats?.totalUsers}   sub={`${activePercent}% active`}    color="#4f46e5" />
+          <SummaryCard label="Active Users"  value={stats?.activeUsers}  sub={`${activePercent}% of total`}  color="#10b981" />
+          <SummaryCard label="Banned Users"  value={stats?.bannedUsers}  sub="Currently blocked"             color="#ef4444" />
+          <SummaryCard label="Premium Users" value={stats?.premiumUsers} sub={`${premiumPercent}% of total`} color="#8b5cf6" />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "14px", marginBottom: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: colWide, gap: "14px", marginBottom: "20px" }}>
           <div className="card">
             <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>User Growth</div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Monthly new registrations</div>
@@ -293,7 +299,7 @@ const Analytics = () => {
 
         {/* ── Section 2: Subscription ── */}
         <SectionTitle title="Subscription" sub="Premium vs free user distribution" />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "14px", marginBottom: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: colFeedback, gap: "14px", marginBottom: "20px" }}>
           <div className="card">
             <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Premium vs Free</div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Current distribution</div>
@@ -323,11 +329,10 @@ const Analytics = () => {
             </div>
           </div>
 
-          {/* Feedback summary */}
           <div className="card">
             <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Feedback Overview</div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Monthly submissions and avg rating</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: col2, gap: "16px" }}>
               <div style={{ position: "relative", height: "160px" }}>
                 <Bar data={feedbackMonthData} options={chartOptions} />
               </div>
@@ -370,10 +375,10 @@ const Analytics = () => {
 
         {/* ── Section 3: Transactions ── */}
         <SectionTitle title="Transactions" sub="System wide income, expense and volume trends" />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Transactions" value={txAnalytics?.totalTransactions}              sub="Completed"             color="#4f46e5" />
-          <SummaryCard label="Total Income"        value={formatCurrency(txAnalytics?.totalIncome)}   sub={`${txAnalytics?.incomeCount} transactions`}  color="#10b981" />
-          <SummaryCard label="Total Expense"       value={formatCurrency(txAnalytics?.totalExpense)}  sub={`${txAnalytics?.expenseCount} transactions`} color="#ef4444" />
+        <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
+          <SummaryCard label="Total Transactions" value={txAnalytics?.totalTransactions}             sub="Completed"                                                                    color="#4f46e5" />
+          <SummaryCard label="Total Income"        value={formatCurrency(txAnalytics?.totalIncome)}  sub={`${txAnalytics?.incomeCount} transactions`}                                   color="#10b981" />
+          <SummaryCard label="Total Expense"       value={formatCurrency(txAnalytics?.totalExpense)} sub={`${txAnalytics?.expenseCount} transactions`}                                  color="#ef4444" />
           <SummaryCard label="Net Balance"
             value={formatCurrency(Math.abs((txAnalytics?.totalIncome || 0) - (txAnalytics?.totalExpense || 0)))}
             sub={(txAnalytics?.totalIncome || 0) >= (txAnalytics?.totalExpense || 0) ? "Net positive" : "Net negative"}
@@ -381,7 +386,7 @@ const Analytics = () => {
           />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "14px", marginBottom: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: colWide, gap: "14px", marginBottom: "20px" }}>
           <div className="card">
             <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Monthly Volume</div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Transaction count per month</div>
@@ -413,14 +418,14 @@ const Analytics = () => {
 
         {/* ── Section 4: Goals ── */}
         <SectionTitle title="Goals" sub="User goal creation, completion and category breakdown" />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Goals"       value={goalAnalytics?.totalGoals}                                         sub="All time"          color="#8b5cf6" />
-          <SummaryCard label="Active Goals"      value={goalAnalytics?.activeGoals}                                        sub="In progress"       color="#4f46e5" />
-          <SummaryCard label="Completed Goals"   value={goalAnalytics?.completedGoals}                                     sub="Achieved"          color="#10b981" />
-          <SummaryCard label="Avg Completion"    value={`${goalAnalytics?.avgCompletionRate || 0}%`}                       sub="Across all goals"  color="#f59e0b" />
+        <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
+          <SummaryCard label="Total Goals"     value={goalAnalytics?.totalGoals}                    sub="All time"         color="#8b5cf6" />
+          <SummaryCard label="Active Goals"    value={goalAnalytics?.activeGoals}                   sub="In progress"      color="#4f46e5" />
+          <SummaryCard label="Completed Goals" value={goalAnalytics?.completedGoals}                sub="Achieved"         color="#10b981" />
+          <SummaryCard label="Avg Completion"  value={`${goalAnalytics?.avgCompletionRate || 0}%`}  sub="Across all goals" color="#f59e0b" />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "14px", marginBottom: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: colWideRev, gap: "14px", marginBottom: "20px" }}>
           <div className="card">
             <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Goal Status</div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Active vs completed vs overdue</div>
@@ -464,14 +469,14 @@ const Analytics = () => {
 
         {/* ── Section 5: Accounts ── */}
         <SectionTitle title="Accounts" sub="Account types, balances and status overview" />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Accounts"  value={accountAnalytics?.totalAccounts}                  sub={`Avg ${accountAnalytics?.avgAccountsPerUser} per user`} color="#4f46e5" />
-          <SummaryCard label="Total Balance"   value={formatCurrency(accountAnalytics?.totalBalance)}   sub="Across all accounts"                                    color="#10b981" />
-          <SummaryCard label="Cash Accounts"   value={accountAnalytics?.cashAccounts}                   sub={formatCurrency(accountAnalytics?.cashBalance)}          color="#f59e0b" />
-          <SummaryCard label="Bank Accounts"   value={accountAnalytics?.bankAccounts}                   sub={formatCurrency(accountAnalytics?.bankBalance)}          color="#8b5cf6" />
+        <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
+          <SummaryCard label="Total Accounts" value={accountAnalytics?.totalAccounts}                sub={`Avg ${accountAnalytics?.avgAccountsPerUser} per user`} color="#4f46e5" />
+          <SummaryCard label="Total Balance"  value={formatCurrency(accountAnalytics?.totalBalance)} sub="Across all accounts"                                    color="#10b981" />
+          <SummaryCard label="Cash Accounts"  value={accountAnalytics?.cashAccounts}                 sub={formatCurrency(accountAnalytics?.cashBalance)}          color="#f59e0b" />
+          <SummaryCard label="Bank Accounts"  value={accountAnalytics?.bankAccounts}                 sub={formatCurrency(accountAnalytics?.bankBalance)}          color="#8b5cf6" />
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "14px", marginBottom: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: colWideRev, gap: "14px", marginBottom: "20px" }}>
           <div className="card">
             <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Account Types</div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Cash vs bank accounts</div>
@@ -504,14 +509,13 @@ const Analytics = () => {
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "16px" }}>Active, frozen and closed accounts</div>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {[
-                { label: "Active",  value: accountAnalytics?.activeAccounts, color: "#10b981", bg: "var(--success-light)", textColor: "var(--success-text)" },
-                { label: "Frozen",  value: accountAnalytics?.frozenAccounts, color: "#f59e0b", bg: "var(--warning-light)", textColor: "var(--warning-text)" },
-                { label: "Closed",  value: accountAnalytics?.closedAccounts, color: "#ef4444", bg: "var(--danger-light)",  textColor: "var(--danger-text)"  },
+                { label: "Active", value: accountAnalytics?.activeAccounts, bg: "var(--success-light)", textColor: "var(--success-text)" },
+                { label: "Frozen", value: accountAnalytics?.frozenAccounts, bg: "var(--warning-light)", textColor: "var(--warning-text)" },
+                { label: "Closed", value: accountAnalytics?.closedAccounts, bg: "var(--danger-light)",  textColor: "var(--danger-text)"  },
               ].map((item) => (
                 <div key={item.label} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "10px 14px", borderRadius: "8px",
-                  background: item.bg,
+                  padding: "10px 14px", borderRadius: "8px", background: item.bg,
                 }}>
                   <span style={{ fontSize: "13px", fontWeight: "500", color: item.textColor }}>{item.label}</span>
                   <span style={{ fontSize: "18px", fontWeight: "700", color: item.textColor }}>{item.value}</span>

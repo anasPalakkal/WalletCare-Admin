@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
+import useWindowSize from "../hooks/useWindowSize";
 
 const formatCurrency = (amount) => {
   if (!amount) return "₹0";
@@ -15,6 +16,7 @@ const formatCurrency = (amount) => {
 const UserDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isMobile, isTablet } = useWindowSize();
   const [user, setUser] = useState(null);
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -103,7 +105,12 @@ const UserDetail = () => {
         </button>
 
         {/* Top — Profile + Actions */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: "14px",
+          marginBottom: "14px",
+        }}>
 
           {/* Profile Card */}
           <div className="card">
@@ -218,7 +225,11 @@ const UserDetail = () => {
         </div>
 
         {/* Bottom — App Usage */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr",
+          gap: "14px",
+        }}>
 
           {/* Accounts */}
           <div className="card">
@@ -230,12 +241,10 @@ const UserDetail = () => {
               </div>
               <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)" }}>Accounts</div>
             </div>
-
             <div style={{ fontSize: "28px", fontWeight: "700", color: "var(--text)", marginBottom: "4px" }}>
               {overview?.accounts?.total || 0}
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Total accounts</div>
-
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
                 { label: "Active",  value: overview?.accounts?.active,       color: "var(--success)" },
@@ -268,12 +277,10 @@ const UserDetail = () => {
               </div>
               <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)" }}>Goals</div>
             </div>
-
             <div style={{ fontSize: "28px", fontWeight: "700", color: "var(--text)", marginBottom: "4px" }}>
               {overview?.goals?.total || 0}
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Total goals</div>
-
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
               {[
                 { label: "Active",    value: overview?.goals?.active,    color: "var(--success)" },
@@ -313,12 +320,10 @@ const UserDetail = () => {
               </div>
               <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)" }}>Transactions</div>
             </div>
-
             <div style={{ fontSize: "28px", fontWeight: "700", color: "var(--text)", marginBottom: "4px" }}>
               {overview?.transactions?.total || 0}
             </div>
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Total transactions</div>
-
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Top Category</span>

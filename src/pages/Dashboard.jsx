@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useWindowSize from "../hooks/useWindowSize";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
@@ -22,39 +23,116 @@ const formatMonthLabel = (id) => {
   return date.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 };
 
-const StatCard = ({ label, value, color }) => (
-  <div className="card" style={{ borderTop: `3px solid ${color}` }}>
+const formatCurrency = (val) => {
+  if (!val && val !== 0) return "—";
+  if (val >= 1_00_00_000) return `₹${(val / 1_00_00_000).toFixed(1)}Cr`;
+  if (val >= 1_00_000) return `₹${(val / 1_00_000).toFixed(1)}L`;
+  if (val >= 1_000) return `₹${(val / 1_000).toFixed(1)}K`;
+  return `₹${val}`;
+};
+
+// ─── Compact stat row inside a section card ───────────────────────────────
+const MiniStat = ({ label, value, color }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
     <div style={{
-      fontSize: "11px", color: "var(--text-muted)",
-      marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px"
+      fontSize: "10px", color: "var(--text-muted)",
+      textTransform: "uppercase", letterSpacing: "0.5px",
     }}>
       {label}
     </div>
-    <div style={{ fontSize: "26px", fontWeight: "700", color: "var(--text)" }}>
+    <div style={{
+      fontSize: "18px", fontWeight: "700",
+      color: color || "var(--text)",
+    }}>
       {value ?? "—"}
     </div>
   </div>
 );
 
+// ─── Section card: stats on left, mini chart on right ─────────────────────
+const SectionCard = ({ title, accent, stats, chart, children }) => (
+  <div className="card" style={{ borderTop: `2px solid ${accent}` }}>
+    <div style={{
+      fontSize: "12px", fontWeight: "600",
+      color: "var(--text)", marginBottom: "14px",
+      textTransform: "uppercase", letterSpacing: "0.5px",
+    }}>
+      {title}
+    </div>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
+      {/* Stats column */}
+      <div style={{
+        display: "flex", flexDirection: "column",
+        gap: "12px", minWidth: "130px", flexShrink: 0,
+      }}>
+        {stats}
+      </div>
+      {/* Chart column */}
+      <div style={{ flex: 1, position: "relative", height: "120px" }}>
+        {chart}
+      </div>
+    </div>
+    {children}
+  </div>
+);
+
+const miniBarOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { enabled: true } },
+  scales: {
+    x: {
+      ticks: { color: "#6b7280", font: { size: 9 }, maxRotation: 0 },
+      grid: { display: false },
+      border: { display: false },
+    },
+    y: {
+      ticks: { color: "#6b7280", font: { size: 9 }, maxTicksLimit: 4 },
+      grid: { color: "rgba(107,114,128,0.08)" },
+      border: { display: false },
+    },
+  },
+};
+
+const miniDoughnutOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  cutout: "68%",
+  plugins: { legend: { display: false }, tooltip: { enabled: true } },
+};
+
+// ─── Dashboard ────────────────────────────────────────────────────────────
 const Dashboard = () => {
+  const { isMobile, isTablet } = useWindowSize();
   const [stats, setStats] = useState(null);
   const [userAnalytics, setUserAnalytics] = useState(null);
   const [feedbackAnalytics, setFeedbackAnalytics] = useState(null);
+  const [txAnalytics, setTxAnalytics] = useState(null);
+  const [goalAnalytics, setGoalAnalytics] = useState(null);
+  const [accountAnalytics, setAccountAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [statsRes, userRes, feedbackRes] = await Promise.all([
+        const [
+          statsRes, userRes, feedbackRes,
+          txRes, goalRes, accountRes,
+        ] = await Promise.all([
           api.get("/admin/stats"),
           api.get("/admin/analytics/users"),
           api.get("/admin/analytics/feedback"),
+          api.get("/admin/analytics/transactions"),
+          api.get("/admin/analytics/goals"),
+          api.get("/admin/analytics/accounts"),
         ]);
-
         setStats(statsRes.data.data);
         setUserAnalytics(userRes.data.data);
         setFeedbackAnalytics(feedbackRes.data.data);
+        setTxAnalytics(txRes.data.data);
+        setGoalAnalytics(goalRes.data.data);
+        setAccountAnalytics(accountRes.data.data);
       } catch (err) {
         setError("Failed to load dashboard data.");
         console.error("Dashboard error:", err);
@@ -65,34 +143,9 @@ const Dashboard = () => {
     fetchAll();
   }, []);
 
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: {
-        ticks: { color: "#6b7280", font: { size: 11 } },
-        grid: { color: "rgba(107,114,128,0.1)" },
-        border: { display: false },
-      },
-      y: {
-        ticks: { color: "#6b7280", font: { size: 11 } },
-        grid: { color: "rgba(107,114,128,0.1)" },
-        border: { display: false },
-      },
-    },
-  };
-
-  const doughnutOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: "70%",
-    plugins: { legend: { display: false } },
-  };
-
   if (loading) return (
     <Layout>
-      <Topbar title="Dashboard" subtitle="Overview of all system metrics" />
+      <Topbar title="Dashboard" subtitle="System overview" />
       <div className="main-content">
         <div className="loading">Loading dashboard...</div>
       </div>
@@ -101,40 +154,58 @@ const Dashboard = () => {
 
   if (error) return (
     <Layout>
-      <Topbar title="Dashboard" subtitle="Overview of all system metrics" />
+      <Topbar title="Dashboard" subtitle="System overview" />
       <div className="main-content">
         <div style={{ color: "var(--danger)", padding: "20px" }}>{error}</div>
       </div>
     </Layout>
   );
 
+  // ── Chart data ────────────────────────────────────────────────────────
+
   const userGrowthData = {
     labels: userAnalytics?.userGrowth?.map((d) => formatMonthLabel(d._id)) || [],
     datasets: [{
       data: userAnalytics?.userGrowth?.map((d) => d.count) || [],
       backgroundColor: "#4f46e5",
-      borderRadius: 5,
-      barPercentage: 0.6,
+      borderRadius: 4,
+      barPercentage: 0.65,
     }],
   };
 
-  const premiumData = {
-    labels: ["Premium", "Free"],
+  const incomeExpenseData = {
+    labels: ["Income", "Expense"],
     datasets: [{
       data: [
-        userAnalytics?.premiumVsFree?.premiumUsers || 0,
-        userAnalytics?.premiumVsFree?.freeUsers || 0,
+        txAnalytics?.totalIncome || 0,
+        txAnalytics?.totalExpense || 0,
       ],
-      backgroundColor: ["#8b5cf6", "#e5e7eb"],
+      backgroundColor: ["#10b981", "#ef4444"],
       borderWidth: 0,
     }],
   };
 
-  const feedbackCategoryData = {
-    labels: feedbackAnalytics?.feedbackByCategory?.map((d) => d._id) || [],
+  const goalStatusData = {
+    labels: ["Active", "Completed", "Overdue"],
     datasets: [{
-      data: feedbackAnalytics?.feedbackByCategory?.map((d) => d.count) || [],
-      backgroundColor: ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"],
+      data: [
+        goalAnalytics?.activeGoals || 0,
+        goalAnalytics?.completedGoals || 0,
+        goalAnalytics?.overdueGoals || 0,
+      ],
+      backgroundColor: ["#4f46e5", "#10b981", "#ef4444"],
+      borderWidth: 0,
+    }],
+  };
+
+  const cashBankData = {
+    labels: ["Cash", "Bank"],
+    datasets: [{
+      data: [
+        accountAnalytics?.cashBalance || 0,
+        accountAnalytics?.bankBalance || 0,
+      ],
+      backgroundColor: ["#f59e0b", "#3b82f6"],
       borderWidth: 0,
     }],
   };
@@ -144,141 +215,204 @@ const Dashboard = () => {
     datasets: [{
       data: feedbackAnalytics?.feedbackPerMonth?.map((d) => d.count) || [],
       backgroundColor: "#10b981",
-      borderRadius: 5,
-      barPercentage: 0.6,
+      borderRadius: 4,
+      barPercentage: 0.65,
     }],
   };
 
+  // ── Grid columns ──────────────────────────────────────────────────────
+  const col2 = isMobile ? "1fr" : "1fr 1fr";
+
   return (
     <Layout>
-      <Topbar title="Dashboard" subtitle="Overview of all system metrics" />
+      <Topbar title="Dashboard" subtitle="System overview" />
       <div className="main-content">
 
-        {/* Stat Cards */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          gap: "12px",
-          marginBottom: "20px",
-        }}>
-          <StatCard label="Total Users" value={stats?.totalUsers} color="#4f46e5" />
-          <StatCard label="Active Users" value={stats?.activeUsers} color="#10b981" />
-          <StatCard label="Banned Users" value={stats?.bannedUsers} color="#ef4444" />
-          <StatCard label="Premium Users" value={stats?.premiumUsers} color="#8b5cf6" />
-          <StatCard label="Total Feedbacks" value={stats?.totalFeedbacks} color="#f59e0b" />
-          <StatCard label="Scheduled Deletion" value={stats?.scheduledForDeletion} color="#14b8a6" />
-        </div>
+        {/* ── Row 1: Users + Transactions ── */}
+        <div style={{ display: "grid", gridTemplateColumns: col2, gap: "12px", marginBottom: "12px" }}>
 
-        {/* Charts Row 1 */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "14px",
-          marginBottom: "14px",
-        }}>
-          <div className="card">
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>
-              User Growth
-            </div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>
-              Monthly registrations — last 6 months
-            </div>
-            <div style={{ position: "relative", height: "180px" }}>
-              <Bar data={userGrowthData} options={chartOptions} />
-            </div>
-          </div>
-
-          <div className="card">
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>
-              Premium vs Free
-            </div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>
-              Current user distribution
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-              <div style={{ position: "relative", height: "150px", width: "150px", flexShrink: 0 }}>
-                <Doughnut data={premiumData} options={doughnutOptions} />
+          {/* Users */}
+          <SectionCard
+            title="Users"
+            accent="#4f46e5"
+            stats={
+              <>
+                <MiniStat label="Total" value={stats?.totalUsers} />
+                <MiniStat label="Active" value={stats?.activeUsers} color="#10b981" />
+                <MiniStat label="Banned" value={stats?.bannedUsers} color="#ef4444" />
+                <MiniStat label="Premium" value={stats?.premiumUsers} color="#8b5cf6" />
+              </>
+            }
+            chart={<Bar data={userGrowthData} options={miniBarOpts} />}
+          >
+            <div style={{
+              display: "flex", gap: "16px", flexWrap: "wrap",
+              marginTop: "12px", paddingTop: "10px",
+              borderTop: "1px solid var(--border)",
+            }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Scheduled deletion</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#14b8a6" }}>{stats?.scheduledForDeletion ?? "—"}</div>
               </div>
               <div>
-                <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: "20px", fontWeight: "700", color: "var(--text)" }}>
-                    {userAnalytics?.premiumVsFree?.premiumUsers || 0}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Premium users</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "20px", fontWeight: "700", color: "var(--text)" }}>
-                    {userAnalytics?.premiumVsFree?.freeUsers || 0}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Free users</div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "12px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-muted)" }}>
-                    <div style={{ width: "9px", height: "9px", borderRadius: "2px", background: "#8b5cf6" }}></div>
-                    Premium
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-muted)" }}>
-                    <div style={{ width: "9px", height: "9px", borderRadius: "2px", background: "#e5e7eb" }}></div>
-                    Free
-                  </div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Free users</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text)" }}>
+                  {(userAnalytics?.premiumVsFree?.freeUsers) ?? "—"}
                 </div>
               </div>
             </div>
-          </div>
+          </SectionCard>
+
+          {/* Transactions */}
+          <SectionCard
+            title="Transactions"
+            accent="#10b981"
+            stats={
+              <>
+                <MiniStat label="Total" value={txAnalytics?.totalTransactions} />
+                <MiniStat label="Income" value={formatCurrency(txAnalytics?.totalIncome)} color="#10b981" />
+                <MiniStat label="Expense" value={formatCurrency(txAnalytics?.totalExpense)} color="#ef4444" />
+              </>
+            }
+            chart={<Doughnut data={incomeExpenseData} options={miniDoughnutOpts} />}
+          >
+            <div style={{
+              display: "flex", gap: "16px", flexWrap: "wrap",
+              marginTop: "12px", paddingTop: "10px",
+              borderTop: "1px solid var(--border)",
+            }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Income count</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#10b981" }}>{txAnalytics?.incomeCount ?? "—"}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Expense count</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#ef4444" }}>{txAnalytics?.expenseCount ?? "—"}</div>
+              </div>
+            </div>
+          </SectionCard>
         </div>
 
-        {/* Charts Row 2 — Feedback */}
-        <div className="card">
-          <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>
-            Feedback Analytics
-          </div>
-          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "16px" }}>
-            Submissions by category and monthly trend
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-            <div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "8px" }}>By category</div>
-              <div style={{ position: "relative", height: "180px" }}>
-                <Doughnut data={feedbackCategoryData} options={doughnutOptions} />
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "10px" }}>
-                {feedbackAnalytics?.feedbackByCategory?.map((d, i) => (
-                  <div key={d._id} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "var(--text-muted)" }}>
-                    <div style={{ width: "9px", height: "9px", borderRadius: "2px", background: ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"][i] }}></div>
-                    {d._id} ({d.count})
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "8px" }}>Per month</div>
-              <div style={{ position: "relative", height: "180px" }}>
-                <Bar data={feedbackMonthData} options={chartOptions} />
-              </div>
-            </div>
-          </div>
+        {/* ── Row 2: Goals + Accounts ── */}
+        <div style={{ display: "grid", gridTemplateColumns: col2, gap: "12px", marginBottom: "12px" }}>
 
-          <div style={{
-            display: "flex", gap: "20px", flexWrap: "wrap",
-            marginTop: "16px", paddingTop: "14px",
-            borderTop: "1px solid var(--border)",
-          }}>
-            <div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>This month</div>
-              <div style={{ fontSize: "18px", fontWeight: "700", color: "var(--text)" }}>
-                {feedbackAnalytics?.totalFeedbacksThisMonth || 0}
+          {/* Goals */}
+          <SectionCard
+            title="Goals"
+            accent="#8b5cf6"
+            stats={
+              <>
+                <MiniStat label="Total" value={goalAnalytics?.totalGoals} />
+                <MiniStat label="Active" value={goalAnalytics?.activeGoals} color="#4f46e5" />
+                <MiniStat label="Completed" value={goalAnalytics?.completedGoals} color="#10b981" />
+                <MiniStat label="Overdue" value={goalAnalytics?.overdueGoals} color="#ef4444" />
+              </>
+            }
+            chart={<Doughnut data={goalStatusData} options={miniDoughnutOpts} />}
+          >
+            <div style={{
+              display: "flex", gap: "16px", flexWrap: "wrap",
+              marginTop: "12px", paddingTop: "10px",
+              borderTop: "1px solid var(--border)",
+            }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Avg completion</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#8b5cf6" }}>
+                  {goalAnalytics?.avgCompletionRate
+                    ? `${Number(goalAnalytics.avgCompletionRate).toFixed(1)}%`
+                    : "—"}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Target amount</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text)" }}>
+                  {formatCurrency(goalAnalytics?.totalTargetAmount)}
+                </div>
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Avg rating</div>
-              <div style={{ fontSize: "18px", fontWeight: "700", color: "var(--text)" }}>
-                {feedbackAnalytics?.avgRating
+          </SectionCard>
+
+          {/* Accounts */}
+          <SectionCard
+            title="Accounts"
+            accent="#3b82f6"
+            stats={
+              <>
+                <MiniStat label="Total" value={accountAnalytics?.totalAccounts} />
+                <MiniStat label="Total balance" value={formatCurrency(accountAnalytics?.totalBalance)} color="#3b82f6" />
+                <MiniStat label="Avg balance" value={formatCurrency(accountAnalytics?.avgBalance)} />
+              </>
+            }
+            chart={<Doughnut data={cashBankData} options={miniDoughnutOpts} />}
+          >
+            <div style={{
+              display: "flex", gap: "16px", flexWrap: "wrap",
+              marginTop: "12px", paddingTop: "10px",
+              borderTop: "1px solid var(--border)",
+            }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Cash</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#f59e0b" }}>
+                  {formatCurrency(accountAnalytics?.cashBalance)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Bank</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#3b82f6" }}>
+                  {formatCurrency(accountAnalytics?.bankBalance)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Avg / user</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text)" }}>
+                  {accountAnalytics?.avgAccountsPerUser
+                    ? Number(accountAnalytics.avgAccountsPerUser).toFixed(1)
+                    : "—"}
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* ── Row 3: Feedback (full width) ── */}
+        <SectionCard
+          title="Feedback"
+          accent="#f59e0b"
+          stats={
+            <>
+              <MiniStat label="Total" value={stats?.totalFeedbacks} />
+              <MiniStat label="This month" value={feedbackAnalytics?.totalFeedbacksThisMonth} color="#f59e0b" />
+              <MiniStat
+                label="Avg rating"
+                value={feedbackAnalytics?.avgRating
                   ? `${Number(feedbackAnalytics.avgRating).toFixed(1)} / 5`
                   : "—"}
+                color="#f59e0b"
+              />
+            </>
+          }
+          chart={<Bar data={feedbackMonthData} options={miniBarOpts} />}
+        >
+          {/* Category legend */}
+          <div style={{
+            display: "flex", gap: "12px", flexWrap: "wrap",
+            marginTop: "12px", paddingTop: "10px",
+            borderTop: "1px solid var(--border)",
+          }}>
+            {feedbackAnalytics?.feedbackByCategory?.map((d, i) => (
+              <div key={d._id} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                <div style={{
+                  width: "8px", height: "8px", borderRadius: "2px",
+                  background: ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"][i],
+                  flexShrink: 0,
+                }} />
+                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                  {d._id} ({d.count})
+                </span>
               </div>
-            </div>
+            ))}
           </div>
-        </div>
+        </SectionCard>
 
       </div>
     </Layout>
