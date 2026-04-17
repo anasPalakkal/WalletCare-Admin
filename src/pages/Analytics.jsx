@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
@@ -25,8 +25,8 @@ const formatMonthLabel = (id) => {
 
 const formatCurrency = (amount) => {
   if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
-  if (amount >= 100000)   return `₹${(amount / 100000).toFixed(1)}L`;
-  if (amount >= 1000)     return `₹${(amount / 1000).toFixed(1)}K`;
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+  if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
   return `₹${amount}`;
 };
 
@@ -53,6 +53,8 @@ const SectionTitle = ({ title, sub }) => (
   </div>
 );
 
+const POLL_INTERVAL = 60000;
+
 const Analytics = () => {
   const { isMobile, isTablet } = useWindowSize();
   const [stats, setStats] = useState(null);
@@ -63,32 +65,44 @@ const Analytics = () => {
   const [accountAnalytics, setAccountAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const lastUpdatedRef = useRef(null); // ← ref to track first load
+
+  const fetchAll = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (!lastUpdatedRef.current) setLoading(true); // ← only on first load
+      const [statsRes, userRes, feedbackRes, txRes, goalRes, accountRes] = await Promise.all([
+        api.get("/admin/stats"),
+        api.get("/admin/analytics/users"),
+        api.get("/admin/analytics/feedback"),
+        api.get("/admin/analytics/transactions"),
+        api.get("/admin/analytics/goals"),
+        api.get("/admin/analytics/accounts"),
+      ]);
+      setStats(statsRes.data.data);
+      setUserAnalytics(userRes.data.data);
+      setFeedbackAnalytics(feedbackRes.data.data);
+      setTxAnalytics(txRes.data.data);
+      setGoalAnalytics(goalRes.data.data);
+      setAccountAnalytics(accountRes.data.data);
+      lastUpdatedRef.current = new Date(); // ← update ref
+      setLastUpdated(new Date());          // ← update state for UI
+      setError("");
+    } catch (err) {
+      setError("Failed to load analytics data.");
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  }, []); // ← empty deps, no lastUpdated
 
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [statsRes, userRes, feedbackRes, txRes, goalRes, accountRes] = await Promise.all([
-          api.get("/admin/stats"),
-          api.get("/admin/analytics/users"),
-          api.get("/admin/analytics/feedback"),
-          api.get("/admin/analytics/transactions"),
-          api.get("/admin/analytics/goals"),
-          api.get("/admin/analytics/accounts"),
-        ]);
-        setStats(statsRes.data.data);
-        setUserAnalytics(userRes.data.data);
-        setFeedbackAnalytics(feedbackRes.data.data);
-        setTxAnalytics(txRes.data.data);
-        setGoalAnalytics(goalRes.data.data);
-        setAccountAnalytics(accountRes.data.data);
-      } catch (err) {
-        setError("Failed to load analytics data.");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchAll();
-  }, []);
+    const interval = setInterval(fetchAll, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchAll]);
 
   const chartOptions = {
     responsive: true,
@@ -127,7 +141,13 @@ const Analytics = () => {
 
   if (error) return (
     <Layout>
-      <Topbar title="Analytics" subtitle="Detailed system analytics" />
+      <Topbar
+        title="Analytics"
+        subtitle="Detailed system analytics"
+        onRefresh={fetchAll}
+        refreshing={refreshing}
+        lastUpdated={lastUpdated}
+      />
       <div className="main-content">
         <div style={{ color: "var(--danger)" }}>{error}</div>
       </div>
@@ -140,8 +160,8 @@ const Analytics = () => {
   const activePercent = stats?.totalUsers
     ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0;
 
-  const categoryColors = ["#4f46e5","#10b981","#f59e0b","#ef4444","#8b5cf6","#14b8a6"];
-  const goalColors     = ["#10b981","#4f46e5","#ef4444"];
+  const categoryColors = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6"];
+  const goalColors = ["#10b981", "#4f46e5", "#ef4444"];
 
   const col4 = isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0,1fr))" : "repeat(4, minmax(0,1fr))";
   const col2 = isMobile ? "1fr" : "1fr 1fr";
@@ -251,15 +271,21 @@ const Analytics = () => {
 
   return (
     <Layout>
-      <Topbar title="Analytics" subtitle="Detailed system analytics" />
+      <Topbar
+        title="Analytics"
+        subtitle="Detailed system analytics"
+        onRefresh={fetchAll}
+        refreshing={refreshing}
+        lastUpdated={lastUpdated}
+      />
       <div className="main-content">
 
         {/* ── Section 1: User Overview ── */}
         <SectionTitle title="User Overview" sub="Registration, status and subscription breakdown" />
         <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Users"   value={stats?.totalUsers}   sub={`${activePercent}% active`}    color="#4f46e5" />
-          <SummaryCard label="Active Users"  value={stats?.activeUsers}  sub={`${activePercent}% of total`}  color="#10b981" />
-          <SummaryCard label="Banned Users"  value={stats?.bannedUsers}  sub="Currently blocked"             color="#ef4444" />
+          <SummaryCard label="Total Users" value={stats?.totalUsers} sub={`${activePercent}% active`} color="#4f46e5" />
+          <SummaryCard label="Active Users" value={stats?.activeUsers} sub={`${activePercent}% of total`} color="#10b981" />
+          <SummaryCard label="Banned Users" value={stats?.bannedUsers} sub="Currently blocked" color="#ef4444" />
           <SummaryCard label="Premium Users" value={stats?.premiumUsers} sub={`${premiumPercent}% of total`} color="#8b5cf6" />
         </div>
 
@@ -279,8 +305,8 @@ const Analytics = () => {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
               {[
-                { label: "Active",    value: stats?.activeUsers,          color: "#10b981" },
-                { label: "Banned",    value: stats?.bannedUsers,          color: "#ef4444" },
+                { label: "Active", value: stats?.activeUsers, color: "#10b981" },
+                { label: "Banned", value: stats?.bannedUsers, color: "#ef4444" },
                 { label: "Scheduled", value: stats?.scheduledForDeletion, color: "#f59e0b" },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -310,7 +336,7 @@ const Analytics = () => {
               <div style={{ flex: 1 }}>
                 {[
                   { label: "Premium", value: userAnalytics?.premiumVsFree?.premiumUsers || 0, color: "#8b5cf6" },
-                  { label: "Free",    value: userAnalytics?.premiumVsFree?.freeUsers || 0,    color: "#e5e7eb" },
+                  { label: "Free", value: userAnalytics?.premiumVsFree?.freeUsers || 0, color: "#e5e7eb" },
                 ].map((item) => (
                   <div key={item.label} style={{ marginBottom: "10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
@@ -357,10 +383,10 @@ const Analytics = () => {
                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/ 5</span>
                 </div>
                 <div style={{ display: "flex", gap: "2px", marginTop: "2px" }}>
-                  {[1,2,3,4,5].map((star) => (
+                  {[1, 2, 3, 4, 5].map((star) => (
                     <svg key={star} width="12" height="12" viewBox="0 0 20 20"
                       fill={star <= Math.round(feedbackAnalytics?.avgRating || 0) ? "#f59e0b" : "var(--border)"}>
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
                   ))}
                 </div>
@@ -376,9 +402,9 @@ const Analytics = () => {
         {/* ── Section 3: Transactions ── */}
         <SectionTitle title="Transactions" sub="System wide income, expense and volume trends" />
         <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Transactions" value={txAnalytics?.totalTransactions}             sub="Completed"                                                                    color="#4f46e5" />
-          <SummaryCard label="Total Income"        value={formatCurrency(txAnalytics?.totalIncome)}  sub={`${txAnalytics?.incomeCount} transactions`}                                   color="#10b981" />
-          <SummaryCard label="Total Expense"       value={formatCurrency(txAnalytics?.totalExpense)} sub={`${txAnalytics?.expenseCount} transactions`}                                  color="#ef4444" />
+          <SummaryCard label="Total Transactions" value={txAnalytics?.totalTransactions} sub="Completed" color="#4f46e5" />
+          <SummaryCard label="Total Income" value={formatCurrency(txAnalytics?.totalIncome)} sub={`${txAnalytics?.incomeCount} transactions`} color="#10b981" />
+          <SummaryCard label="Total Expense" value={formatCurrency(txAnalytics?.totalExpense)} sub={`${txAnalytics?.expenseCount} transactions`} color="#ef4444" />
           <SummaryCard label="Net Balance"
             value={formatCurrency(Math.abs((txAnalytics?.totalIncome || 0) - (txAnalytics?.totalExpense || 0)))}
             sub={(txAnalytics?.totalIncome || 0) >= (txAnalytics?.totalExpense || 0) ? "Net positive" : "Net negative"}
@@ -419,10 +445,10 @@ const Analytics = () => {
         {/* ── Section 4: Goals ── */}
         <SectionTitle title="Goals" sub="User goal creation, completion and category breakdown" />
         <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Goals"     value={goalAnalytics?.totalGoals}                    sub="All time"         color="#8b5cf6" />
-          <SummaryCard label="Active Goals"    value={goalAnalytics?.activeGoals}                   sub="In progress"      color="#4f46e5" />
-          <SummaryCard label="Completed Goals" value={goalAnalytics?.completedGoals}                sub="Achieved"         color="#10b981" />
-          <SummaryCard label="Avg Completion"  value={`${goalAnalytics?.avgCompletionRate || 0}%`}  sub="Across all goals" color="#f59e0b" />
+          <SummaryCard label="Total Goals" value={goalAnalytics?.totalGoals} sub="All time" color="#8b5cf6" />
+          <SummaryCard label="Active Goals" value={goalAnalytics?.activeGoals} sub="In progress" color="#4f46e5" />
+          <SummaryCard label="Completed Goals" value={goalAnalytics?.completedGoals} sub="Achieved" color="#10b981" />
+          <SummaryCard label="Avg Completion" value={`${goalAnalytics?.avgCompletionRate || 0}%`} sub="Across all goals" color="#f59e0b" />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: colWideRev, gap: "14px", marginBottom: "20px" }}>
@@ -434,9 +460,9 @@ const Analytics = () => {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
               {[
-                { label: "Active",    value: goalAnalytics?.activeGoals,    color: "#10b981" },
+                { label: "Active", value: goalAnalytics?.activeGoals, color: "#10b981" },
                 { label: "Completed", value: goalAnalytics?.completedGoals, color: "#4f46e5" },
-                { label: "Overdue",   value: goalAnalytics?.overdueGoals,   color: "#ef4444" },
+                { label: "Overdue", value: goalAnalytics?.overdueGoals, color: "#ef4444" },
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -470,10 +496,10 @@ const Analytics = () => {
         {/* ── Section 5: Accounts ── */}
         <SectionTitle title="Accounts" sub="Account types, balances and status overview" />
         <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Accounts" value={accountAnalytics?.totalAccounts}                sub={`Avg ${accountAnalytics?.avgAccountsPerUser} per user`} color="#4f46e5" />
-          <SummaryCard label="Total Balance"  value={formatCurrency(accountAnalytics?.totalBalance)} sub="Across all accounts"                                    color="#10b981" />
-          <SummaryCard label="Cash Accounts"  value={accountAnalytics?.cashAccounts}                 sub={formatCurrency(accountAnalytics?.cashBalance)}          color="#f59e0b" />
-          <SummaryCard label="Bank Accounts"  value={accountAnalytics?.bankAccounts}                 sub={formatCurrency(accountAnalytics?.bankBalance)}          color="#8b5cf6" />
+          <SummaryCard label="Total Accounts" value={accountAnalytics?.totalAccounts} sub={`Avg ${accountAnalytics?.avgAccountsPerUser} per user`} color="#4f46e5" />
+          <SummaryCard label="Total Balance" value={formatCurrency(accountAnalytics?.totalBalance)} sub="Across all accounts" color="#10b981" />
+          <SummaryCard label="Cash Accounts" value={accountAnalytics?.cashAccounts} sub={formatCurrency(accountAnalytics?.cashBalance)} color="#f59e0b" />
+          <SummaryCard label="Bank Accounts" value={accountAnalytics?.bankAccounts} sub={formatCurrency(accountAnalytics?.bankBalance)} color="#8b5cf6" />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: colWideRev, gap: "14px", marginBottom: "20px" }}>
@@ -511,7 +537,7 @@ const Analytics = () => {
               {[
                 { label: "Active", value: accountAnalytics?.activeAccounts, bg: "var(--success-light)", textColor: "var(--success-text)" },
                 { label: "Frozen", value: accountAnalytics?.frozenAccounts, bg: "var(--warning-light)", textColor: "var(--warning-text)" },
-                { label: "Closed", value: accountAnalytics?.closedAccounts, bg: "var(--danger-light)",  textColor: "var(--danger-text)"  },
+                { label: "Closed", value: accountAnalytics?.closedAccounts, bg: "var(--danger-light)", textColor: "var(--danger-text)" },
               ].map((item) => (
                 <div key={item.label} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",

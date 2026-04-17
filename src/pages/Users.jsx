@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
 import useWindowSize from "../hooks/useWindowSize";
+
+const POLL_INTERVAL = 60000;
 
 const Users = () => {
   const navigate = useNavigate();
@@ -17,26 +19,36 @@ const Users = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
   const { isMobile, isTablet } = useWindowSize();
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const lastUpdatedRef = useRef(null); // ← ref to track first load
+
+  const fetchUsers = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (!lastUpdatedRef.current) setLoading(true); // ← only on first load
+      const res = await api.get("/admin/users");
+      setUsers(res.data.data);
+      lastUpdatedRef.current = new Date(); // ← update ref
+      setLastUpdated(new Date());          // ← update state for UI
+      setError("");
+    } catch (err) {
+      setError("Failed to load users.");
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  }, []); // ← empty deps, no lastUpdated here
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+    const interval = setInterval(fetchUsers, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchUsers]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [filter, search]);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/admin/users");
-      setUsers(res.data.data);
-    } catch (err) {
-      setError("Failed to load users.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAction = async (action, userId) => {
     setActionLoading(userId + action);
@@ -58,7 +70,6 @@ const Users = () => {
     const matchSearch =
       u.name?.toLowerCase().includes(search.toLowerCase()) ||
       u.email?.toLowerCase().includes(search.toLowerCase());
-
     if (filter === "all") return matchSearch;
     if (filter === "active") return matchSearch && !u.isBanned && !u.scheduledDeletionAt;
     if (filter === "banned") return matchSearch && u.isBanned;
@@ -108,7 +119,13 @@ const Users = () => {
 
   if (error) return (
     <Layout>
-      <Topbar title="Users" subtitle="Manage all user accounts" />
+      <Topbar
+        title="Users"
+        subtitle="Manage all user accounts"
+        onRefresh={fetchUsers}
+        refreshing={refreshing}
+        lastUpdated={lastUpdated}
+      />
       <div className="main-content">
         <div style={{ color: "var(--danger)" }}>{error}</div>
       </div>
@@ -117,10 +134,15 @@ const Users = () => {
 
   return (
     <Layout>
-      <Topbar title="Users" subtitle="Manage all user accounts" />
+      <Topbar
+        title="Users"
+        subtitle="Manage all user accounts"
+        onRefresh={fetchUsers}
+        refreshing={refreshing}
+        lastUpdated={lastUpdated}
+      />
       <div className="main-content">
 
-        {/* Stats Row */}
         <div style={{
           display: "grid",
           gridTemplateColumns: isMobile ? "repeat(2, minmax(0,1fr))" : isTablet ? "repeat(3, minmax(0,1fr))" : "repeat(5, minmax(0,1fr))",
@@ -138,20 +160,13 @@ const Users = () => {
                 outline: filter === tab.key ? `2px solid ${tab.color}` : "none",
               }}
             >
-              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>
-                {tab.label}
-              </div>
-              <div style={{ fontSize: "22px", fontWeight: "700", color: "var(--text)" }}>
-                {counts[tab.key]}
-              </div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px" }}>{tab.label}</div>
+              <div style={{ fontSize: "22px", fontWeight: "700", color: "var(--text)" }}>{counts[tab.key]}</div>
             </div>
           ))}
         </div>
 
-        {/* Search + Table */}
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-
-          {/* Search bar */}
           <div style={{
             padding: "14px 16px",
             borderBottom: "1px solid var(--border)",
@@ -171,16 +186,10 @@ const Users = () => {
               }}
             />
             {search && (
-              <button
-                onClick={() => setSearch("")}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "16px" }}
-              >
-                ×
-              </button>
+              <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "16px" }}>×</button>
             )}
           </div>
 
-          {/* Table */}
           <div className="table-wrap">
             <table>
               <thead>
@@ -196,15 +205,11 @@ const Users = () => {
               <tbody>
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: "center", color: "var(--text-muted)", padding: "30px" }}>
-                      No users found
-                    </td>
+                    <td colSpan="6" style={{ textAlign: "center", color: "var(--text-muted)", padding: "30px" }}>No users found</td>
                   </tr>
                 ) : (
                   paginatedUsers.map((user) => (
                     <tr key={user._id}>
-
-                      {/* Avatar + Name */}
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <div style={{
@@ -216,24 +221,14 @@ const Users = () => {
                             {getInitials(user.name)}
                           </div>
                           <div>
-                            <div style={{ fontWeight: "500", fontSize: "13px", color: "var(--text)" }}>
-                              {user.name}
-                            </div>
+                            <div style={{ fontWeight: "500", fontSize: "13px", color: "var(--text)" }}>{user.name}</div>
                             {user.scheduledDeletionAt && (
-                              <div style={{ fontSize: "10px", color: "var(--danger)" }}>
-                                Deletes {formatDate(user.scheduledDeletionAt)}
-                              </div>
+                              <div style={{ fontSize: "10px", color: "var(--danger)" }}>Deletes {formatDate(user.scheduledDeletionAt)}</div>
                             )}
                           </div>
                         </div>
                       </td>
-
-                      {/* Email */}
-                      <td style={{ color: "var(--text-muted)", fontSize: "12px" }}>
-                        {user.email}
-                      </td>
-
-                      {/* Status */}
+                      <td style={{ color: "var(--text-muted)", fontSize: "12px" }}>{user.email}</td>
                       <td>
                         {user.isBanned ? (
                           <span className="badge badge-danger">Banned</span>
@@ -243,71 +238,31 @@ const Users = () => {
                           <span className="badge badge-success">Active</span>
                         )}
                       </td>
-
-                      {/* Plan */}
                       <td>
                         {user.isPremium ? (
                           <span className="badge badge-purple">Premium</span>
                         ) : (
-                          <span className="badge" style={{
-                            background: "var(--bg)", color: "var(--text-muted)",
-                            border: "1px solid var(--border)"
-                          }}>Free</span>
+                          <span className="badge" style={{ background: "var(--bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>Free</span>
                         )}
                       </td>
-
-                      {/* Joined */}
-                      <td style={{ color: "var(--text-muted)", fontSize: "12px" }}>
-                        {formatDate(user.createdAt)}
-                      </td>
-
-                      {/* Actions */}
+                      <td style={{ color: "var(--text-muted)", fontSize: "12px" }}>{formatDate(user.createdAt)}</td>
                       <td>
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                          <button
-                            className="btn"
-                            style={{ fontSize: "11px", padding: "4px 10px" }}
-                            onClick={() => navigate(`/users/${user._id}`)}
-                          >
-                            View
-                          </button>
-
+                          <button className="btn" style={{ fontSize: "11px", padding: "4px 10px" }} onClick={() => navigate(`/users/${user._id}`)}>View</button>
                           {user.isBanned ? (
-                            <button
-                              className="btn btn-success"
-                              style={{ fontSize: "11px", padding: "4px 10px" }}
-                              disabled={actionLoading === user._id + "unban"}
-                              onClick={() => setConfirm({ action: "unban", user })}
-                            >
+                            <button className="btn btn-success" style={{ fontSize: "11px", padding: "4px 10px" }} disabled={actionLoading === user._id + "unban"} onClick={() => setConfirm({ action: "unban", user })}>
                               {actionLoading === user._id + "unban" ? "..." : "Unban"}
                             </button>
                           ) : (
-                            <button
-                              className="btn btn-danger"
-                              style={{ fontSize: "11px", padding: "4px 10px" }}
-                              disabled={actionLoading === user._id + "ban"}
-                              onClick={() => setConfirm({ action: "ban", user })}
-                            >
+                            <button className="btn btn-danger" style={{ fontSize: "11px", padding: "4px 10px" }} disabled={actionLoading === user._id + "ban"} onClick={() => setConfirm({ action: "ban", user })}>
                               {actionLoading === user._id + "ban" ? "..." : "Ban"}
                             </button>
                           )}
-
-                          <button
-                            className="btn"
-                            style={{ fontSize: "11px", padding: "4px 10px" }}
-                            disabled={actionLoading === user._id + "logout"}
-                            onClick={() => setConfirm({ action: "logout", user })}
-                          >
+                          <button className="btn" style={{ fontSize: "11px", padding: "4px 10px" }} disabled={actionLoading === user._id + "logout"} onClick={() => setConfirm({ action: "logout", user })}>
                             {actionLoading === user._id + "logout" ? "..." : "Logout"}
                           </button>
-
                           {user.scheduledDeletionAt && (
-                            <button
-                              className="btn btn-success"
-                              style={{ fontSize: "11px", padding: "4px 10px" }}
-                              disabled={actionLoading === user._id + "restore"}
-                              onClick={() => setConfirm({ action: "restore", user })}
-                            >
+                            <button className="btn btn-success" style={{ fontSize: "11px", padding: "4px 10px" }} disabled={actionLoading === user._id + "restore"} onClick={() => setConfirm({ action: "restore", user })}>
                               {actionLoading === user._id + "restore" ? "..." : "Restore"}
                             </button>
                           )}
@@ -319,26 +274,13 @@ const Users = () => {
               </tbody>
             </table>
 
-            {/* Pagination */}
             {totalPages > 1 && (
-              <div style={{
-                display: "flex", alignItems: "center",
-                justifyContent: "space-between",
-                padding: "12px 16px",
-                borderTop: "1px solid var(--border)",
-              }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderTop: "1px solid var(--border)" }}>
                 <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                   Showing {((currentPage - 1) * usersPerPage) + 1}–{Math.min(currentPage * usersPerPage, filteredUsers.length)} of {filteredUsers.length} users
                 </div>
                 <div style={{ display: "flex", gap: "4px" }}>
-                  <button
-                    className="btn"
-                    style={{ fontSize: "12px", padding: "4px 10px" }}
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((p) => p - 1)}
-                  >
-                    Prev
-                  </button>
+                  <button className="btn" style={{ fontSize: "12px", padding: "4px 10px" }} disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>Prev</button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
                     .reduce((acc, p, idx, arr) => {
@@ -350,29 +292,12 @@ const Users = () => {
                       p === "..." ? (
                         <span key={idx} style={{ padding: "4px 6px", fontSize: "12px", color: "var(--text-muted)" }}>...</span>
                       ) : (
-                        <button
-                          key={p}
-                          className="btn"
-                          style={{
-                            fontSize: "12px", padding: "4px 10px",
-                            background: currentPage === p ? "var(--accent)" : "",
-                            color: currentPage === p ? "white" : "",
-                            borderColor: currentPage === p ? "var(--accent)" : "",
-                          }}
-                          onClick={() => setCurrentPage(p)}
-                        >
+                        <button key={p} className="btn" style={{ fontSize: "12px", padding: "4px 10px", background: currentPage === p ? "var(--accent)" : "", color: currentPage === p ? "white" : "", borderColor: currentPage === p ? "var(--accent)" : "" }} onClick={() => setCurrentPage(p)}>
                           {p}
                         </button>
                       )
                     )}
-                  <button
-                    className="btn"
-                    style={{ fontSize: "12px", padding: "4px 10px" }}
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage((p) => p + 1)}
-                  >
-                    Next
-                  </button>
+                  <button className="btn" style={{ fontSize: "12px", padding: "4px 10px" }} disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</button>
                 </div>
               </div>
             )}
@@ -380,14 +305,8 @@ const Users = () => {
         </div>
       </div>
 
-      {/* Confirm Modal */}
       {confirm && (
-        <div style={{
-          position: "fixed", inset: 0,
-          background: "rgba(0,0,0,0.45)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          zIndex: 100,
-        }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div className="card" style={{ width: "100%", maxWidth: "360px", margin: "16px" }}>
             <div style={{ fontSize: "15px", fontWeight: "600", color: "var(--text)", marginBottom: "8px" }}>
               Confirm {confirm.action.charAt(0).toUpperCase() + confirm.action.slice(1)}
@@ -396,20 +315,14 @@ const Users = () => {
               Are you sure you want to <strong>{confirm.action}</strong> user <strong>{confirm.user.name}</strong>?
             </div>
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button className="btn" onClick={() => setConfirm(null)}>
-                Cancel
-              </button>
-              <button
-                className={confirm.action === "ban" ? "btn btn-danger" : "btn btn-primary"}
-                onClick={() => handleAction(confirm.action, confirm.user._id)}
-              >
+              <button className="btn" onClick={() => setConfirm(null)}>Cancel</button>
+              <button className={confirm.action === "ban" ? "btn btn-danger" : "btn btn-primary"} onClick={() => handleAction(confirm.action, confirm.user._id)}>
                 Yes, {confirm.action}
               </button>
             </div>
           </div>
         </div>
       )}
-
     </Layout>
   );
 };

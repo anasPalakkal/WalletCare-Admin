@@ -2,10 +2,15 @@ import { useTheme } from "../context/ThemeContext";
 import { useLayout } from "../context/LayoutContext";
 import useWindowSize from "../hooks/useWindowSize";
 
-const Topbar = ({ title, subtitle }) => {
+const Topbar = ({ title, subtitle, onRefresh, refreshing, lastUpdated }) => {
   const { theme, toggleTheme } = useTheme();
   const { openSidebar } = useLayout();
   const { isMobile } = useWindowSize();
+
+  const getSubtitle = () => {
+    if (lastUpdated) return `Last updated ${lastUpdated.toLocaleTimeString()}`;
+    return subtitle;
+  };
 
   return (
     <header style={{
@@ -43,15 +48,41 @@ const Topbar = ({ title, subtitle }) => {
           <div style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: "600", color: "var(--text)" }}>
             {title}
           </div>
-          {subtitle && !isMobile && (
+          {getSubtitle() && !isMobile && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "1px" }}>
-              {subtitle}
+              {getSubtitle()}
             </div>
           )}
         </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+
+        {/* Refresh button — only shown if onRefresh is passed */}
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            disabled={refreshing}
+            className="btn"
+            style={{
+              fontSize: "12px", padding: "6px 12px",
+              opacity: refreshing ? 0.6 : 1,
+              cursor: refreshing ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", gap: "5px",
+            }}
+          >
+            <svg
+              width="13" height="13" viewBox="0 0 20 20" fill="currentColor"
+              style={{
+                animation: refreshing ? "spin 0.8s linear infinite" : "none",
+              }}
+            >
+              <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+            </svg>
+            {!isMobile && (refreshing ? "Refreshing..." : "Refresh")}
+          </button>
+        )}
+
         <button
           onClick={toggleTheme}
           className="btn"
@@ -83,6 +114,14 @@ const Topbar = ({ title, subtitle }) => {
           Admin
         </div>
       </div>
+
+      {/* Spin animation for refresh icon */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </header>
   );
 };

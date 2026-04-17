@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import useWindowSize from "../hooks/useWindowSize";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
@@ -31,7 +31,6 @@ const formatCurrency = (val) => {
   return `₹${val}`;
 };
 
-// ─── Compact stat row inside a section card ───────────────────────────────
 const MiniStat = ({ label, value, color }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
     <div style={{
@@ -49,7 +48,6 @@ const MiniStat = ({ label, value, color }) => (
   </div>
 );
 
-// ─── Section card: stats on left, mini chart on right ─────────────────────
 const SectionCard = ({ title, accent, stats, chart, children }) => (
   <div className="card" style={{ borderTop: `2px solid ${accent}` }}>
     <div style={{
@@ -60,14 +58,12 @@ const SectionCard = ({ title, accent, stats, chart, children }) => (
       {title}
     </div>
     <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
-      {/* Stats column */}
       <div style={{
         display: "flex", flexDirection: "column",
         gap: "12px", minWidth: "130px", flexShrink: 0,
       }}>
         {stats}
       </div>
-      {/* Chart column */}
       <div style={{ flex: 1, position: "relative", height: "120px" }}>
         {chart}
       </div>
@@ -101,9 +97,11 @@ const miniDoughnutOpts = {
   plugins: { legend: { display: false }, tooltip: { enabled: true } },
 };
 
-// ─── Dashboard ────────────────────────────────────────────────────────────
+const POLL_INTERVAL = 60000; // 60 seconds
+
 const Dashboard = () => {
   const { isMobile, isTablet } = useWindowSize();
+
   const [stats, setStats] = useState(null);
   const [userAnalytics, setUserAnalytics] = useState(null);
   const [feedbackAnalytics, setFeedbackAnalytics] = useState(null);
@@ -112,36 +110,47 @@ const Dashboard = () => {
   const [accountAnalytics, setAccountAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [
-          statsRes, userRes, feedbackRes,
-          txRes, goalRes, accountRes,
-        ] = await Promise.all([
-          api.get("/admin/stats"),
-          api.get("/admin/analytics/users"),
-          api.get("/admin/analytics/feedback"),
-          api.get("/admin/analytics/transactions"),
-          api.get("/admin/analytics/goals"),
-          api.get("/admin/analytics/accounts"),
-        ]);
-        setStats(statsRes.data.data);
-        setUserAnalytics(userRes.data.data);
-        setFeedbackAnalytics(feedbackRes.data.data);
-        setTxAnalytics(txRes.data.data);
-        setGoalAnalytics(goalRes.data.data);
-        setAccountAnalytics(accountRes.data.data);
-      } catch (err) {
-        setError("Failed to load dashboard data.");
-        console.error("Dashboard error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAll();
+  // ── useCallback so interval and button share the same reference ──────
+  const fetchAll = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [
+        statsRes, userRes, feedbackRes,
+        txRes, goalRes, accountRes,
+      ] = await Promise.all([
+        api.get("/admin/stats"),
+        api.get("/admin/analytics/users"),
+        api.get("/admin/analytics/feedback"),
+        api.get("/admin/analytics/transactions"),
+        api.get("/admin/analytics/goals"),
+        api.get("/admin/analytics/accounts"),
+      ]);
+      setStats(statsRes.data.data);
+      setUserAnalytics(userRes.data.data);
+      setFeedbackAnalytics(feedbackRes.data.data);
+      setTxAnalytics(txRes.data.data);
+      setGoalAnalytics(goalRes.data.data);
+      setAccountAnalytics(accountRes.data.data);
+      setLastUpdated(new Date());
+      setError("");
+    } catch (err) {
+      setError("Failed to load dashboard data.");
+      console.error("Dashboard error:", err);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
   }, []);
+
+  // ── initial load + auto poll every 60s ───────────────────────────────
+  useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchAll, POLL_INTERVAL);
+    return () => clearInterval(interval); // cleanup on unmount
+  }, [fetchAll]);
 
   if (loading) return (
     <Layout>
@@ -154,14 +163,20 @@ const Dashboard = () => {
 
   if (error) return (
     <Layout>
-      <Topbar title="Dashboard" subtitle="System overview" />
+      <Topbar
+        title="Dashboard"
+        subtitle="System overview"
+        onRefresh={fetchAll}
+        refreshing={refreshing}
+        lastUpdated={lastUpdated}
+      />
       <div className="main-content">
         <div style={{ color: "var(--danger)", padding: "20px" }}>{error}</div>
       </div>
     </Layout>
   );
 
-  // ── Chart data ────────────────────────────────────────────────────────
+  // ── chart data ────────────────────────────────────────────────────────
 
   const userGrowthData = {
     labels: userAnalytics?.userGrowth?.map((d) => formatMonthLabel(d._id)) || [],
@@ -220,18 +235,22 @@ const Dashboard = () => {
     }],
   };
 
-  // ── Grid columns ──────────────────────────────────────────────────────
   const col2 = isMobile ? "1fr" : "1fr 1fr";
 
   return (
     <Layout>
-      <Topbar title="Dashboard" subtitle="System overview" />
+      <Topbar
+        title="Dashboard"
+        subtitle="System overview"
+        onRefresh={fetchAll}
+        refreshing={refreshing}
+        lastUpdated={lastUpdated}
+      />
       <div className="main-content">
 
         {/* ── Row 1: Users + Transactions ── */}
         <div style={{ display: "grid", gridTemplateColumns: col2, gap: "12px", marginBottom: "12px" }}>
 
-          {/* Users */}
           <SectionCard
             title="Users"
             accent="#4f46e5"
@@ -257,13 +276,12 @@ const Dashboard = () => {
               <div>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Free users</div>
                 <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text)" }}>
-                  {(userAnalytics?.premiumVsFree?.freeUsers) ?? "—"}
+                  {userAnalytics?.premiumVsFree?.freeUsers ?? "—"}
                 </div>
               </div>
             </div>
           </SectionCard>
 
-          {/* Transactions */}
           <SectionCard
             title="Transactions"
             accent="#10b981"
@@ -296,7 +314,6 @@ const Dashboard = () => {
         {/* ── Row 2: Goals + Accounts ── */}
         <div style={{ display: "grid", gridTemplateColumns: col2, gap: "12px", marginBottom: "12px" }}>
 
-          {/* Goals */}
           <SectionCard
             title="Goals"
             accent="#8b5cf6"
@@ -332,7 +349,6 @@ const Dashboard = () => {
             </div>
           </SectionCard>
 
-          {/* Accounts */}
           <SectionCard
             title="Accounts"
             accent="#3b82f6"
@@ -374,7 +390,7 @@ const Dashboard = () => {
           </SectionCard>
         </div>
 
-        {/* ── Row 3: Feedback (full width) ── */}
+        {/* ── Row 3: Feedback full width ── */}
         <SectionCard
           title="Feedback"
           accent="#f59e0b"
@@ -393,7 +409,6 @@ const Dashboard = () => {
           }
           chart={<Bar data={feedbackMonthData} options={miniBarOpts} />}
         >
-          {/* Category legend */}
           <div style={{
             display: "flex", gap: "12px", flexWrap: "wrap",
             marginTop: "12px", paddingTop: "10px",
