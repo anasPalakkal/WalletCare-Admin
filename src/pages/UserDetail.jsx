@@ -7,6 +7,37 @@ import useWindowSize from "../hooks/useWindowSize";
 
 const POLL_INTERVAL = 60000;
 
+const CATEGORY_META = {
+  "Bug Report":        { icon: "🐛", bg: "rgba(239,68,68,0.09)",   color: "#ef4444" },
+  "Feature Request":   { icon: "✨", bg: "rgba(16,185,129,0.09)",  color: "#10b981" },
+  "UI/UX Issue":       { icon: "🎨", bg: "rgba(139,92,246,0.09)",  color: "#8b5cf6" },
+  "Transaction Issue": { icon: "💳", bg: "rgba(245,158,11,0.09)",  color: "#f59e0b" },
+  "Security Concern":  { icon: "🔒", bg: "rgba(220,38,38,0.09)",   color: "#dc2626" },
+  "Other":             { icon: "💬", bg: "rgba(100,116,139,0.09)", color: "#64748b" },
+};
+
+const Stars = ({ value }) => (
+  <span style={{ color: "#f59e0b", letterSpacing: "1px", fontSize: "13px" }}>
+    {"★".repeat(value || 0)}
+    <span style={{ color: "var(--border)" }}>{"★".repeat(5 - (value || 0))}</span>
+  </span>
+);
+
+const CategoryBadge = ({ cat, small }) => {
+  const meta = CATEGORY_META[cat] || { icon: "💬", bg: "var(--bg)", color: "var(--text-muted)" };
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: "5px",
+      padding: small ? "2px 7px" : "3px 10px",
+      borderRadius: "5px", fontSize: small ? "10px" : "11px",
+      fontWeight: "500", background: meta.bg, color: meta.color,
+      whiteSpace: "nowrap",
+    }}>
+      {meta.icon} {cat}
+    </span>
+  );
+};
+
 const formatCurrency = (amount) => {
   if (!amount) return "₹0";
   if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
@@ -21,26 +52,36 @@ const UserDetail = () => {
   const { isMobile, isTablet } = useWindowSize();
   const [user, setUser] = useState(null);
   const [overview, setOverview] = useState(null);
+  const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const lastUpdatedRef = useRef(null); // ← ref to track first load
+  const lastUpdatedRef = useRef(null);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
 
   const fetchAll = useCallback(async () => {
     setRefreshing(true);
     try {
-      if (!lastUpdatedRef.current) setLoading(true); // ← only on first load
-      const [userRes, overviewRes] = await Promise.all([
+      if (!lastUpdatedRef.current) setLoading(true);
+      const [userRes, overviewRes, feedbackRes] = await Promise.all([
         api.get(`/admin/users/${id}`),
         api.get(`/admin/users/${id}/overview`),
+        api.get(`/admin/feedback`),
       ]);
       setUser(userRes.data.data);
       setOverview(overviewRes.data.data);
-      lastUpdatedRef.current = new Date(); // ← update ref
-      setLastUpdated(new Date());          // ← update state for UI
+      
+      // Filter feedbacks for this user only
+      const userFeedbacks = (feedbackRes.data.data || []).filter(
+        (f) => f.userId?._id === id
+      );
+      setFeedbacks(userFeedbacks);
+      
+      lastUpdatedRef.current = new Date();
+      setLastUpdated(new Date());
       setError("");
     } catch (err) {
       setError("Failed to load user details.");
@@ -48,7 +89,7 @@ const UserDetail = () => {
       setRefreshing(false);
       setLoading(false);
     }
-  }, [id]); // ← only id, no lastUpdated
+  }, [id]);
 
   useEffect(() => {
     fetchAll();
@@ -76,6 +117,11 @@ const UserDetail = () => {
     date ? new Date(date).toLocaleDateString("en-IN", {
       day: "2-digit", month: "short", year: "numeric",
       hour: "2-digit", minute: "2-digit",
+    }) : "—";
+
+  const formatDateShort = (date) =>
+    date ? new Date(date).toLocaleDateString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
     }) : "—";
 
   const getInitials = (name) =>
@@ -156,15 +202,23 @@ const UserDetail = () => {
               {[
                 { label: "User ID", value: user?._id },
                 { label: "Phone", value: user?.phone || "—" },
-                { label: "Role", value: user?.role },
+                { label: "Account Type", value: "User" },
                 { label: "Verified", value: user?.isEmailVerified ? "Yes" : "No" },
+                { label: "Current Rating", value: user?.rating ? `${user.rating}/5 ★` : "Not rated", rating: true },
                 { label: "Joined", value: formatDate(user?.createdAt) },
-                { label: "Updated", value: formatDate(user?.updatedAt) },
+                { label: "Last Updated", value: formatDate(user?.updatedAt) },
                 ...(user?.scheduledDeletionAt ? [{ label: "Deletes on", value: formatDate(user?.scheduledDeletionAt), danger: true }] : []),
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
                   <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{item.label}</span>
-                  <span style={{ fontSize: "12px", fontWeight: "500", color: item.danger ? "var(--danger)" : "var(--text)", maxWidth: "200px", textAlign: "right", wordBreak: "break-all" }}>
+                  <span style={{ 
+                    fontSize: "12px", 
+                    fontWeight: "500", 
+                    color: item.danger ? "var(--danger)" : item.rating ? "#f59e0b" : "var(--text)", 
+                    maxWidth: "200px", 
+                    textAlign: "right", 
+                    wordBreak: "break-all" 
+                  }}>
                     {item.value}
                   </span>
                 </div>
@@ -215,8 +269,8 @@ const UserDetail = () => {
           </div>
         </div>
 
-        {/* App Usage */}
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: "14px" }}>
+        {/* App Usage - 3 columns */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : isTablet ? "1fr 1fr" : "1fr 1fr 1fr", gap: "14px", marginBottom: "14px" }}>
 
           {/* Accounts */}
           <div className="card">
@@ -278,8 +332,6 @@ const UserDetail = () => {
                 <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text)" }}>{formatCurrency(overview?.goals?.totalTargetAmount)}</div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", marginBottom: "4px" }}>Saved So Far</div>
                 <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--success)" }}>{formatCurrency(overview?.goals?.totalCurrentAmount)}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", marginBottom: "4px" }}>Avg Completion</div>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--warning)" }}>{overview?.goals?.avgCompletionRate || 0}%</div>
               </div>
             </div>
           </div>
@@ -307,16 +359,147 @@ const UserDetail = () => {
                 <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--success)" }}>{formatCurrency(overview?.transactions?.totalIncome)}</div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "10px", marginBottom: "4px" }}>Total Expense</div>
                 <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--danger)" }}>{formatCurrency(overview?.transactions?.totalExpense)}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "10px", marginBottom: "4px" }}>Net Balance</div>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--accent)" }}>
-                  {formatCurrency((overview?.transactions?.totalIncome || 0) - (overview?.transactions?.totalExpense || 0))}
-                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Feedback List */}
+        {feedbacks.length > 0 && (
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)" }}>User Feedback History</div>
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                All feedback submitted by this user
+              </div>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Rating</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {feedbacks.map((fb) => (
+                    <tr key={fb._id}>
+                      <td><CategoryBadge cat={fb.category} small /></td>
+                      <td style={{ maxWidth: "300px" }}>
+                        <div style={{
+                          fontSize: "12px", color: "var(--text-muted)",
+                          overflow: "hidden", textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}>
+                          {fb.description}
+                        </div>
+                      </td>
+                      <td>
+                        {fb.rating
+                          ? <Stars value={fb.rating} />
+                          : <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>—</span>}
+                      </td>
+                      <td style={{ color: "var(--text-muted)", fontSize: "12px", whiteSpace: "nowrap" }}>
+                        {formatDateShort(fb.createdAt)}
+                      </td>
+                      <td>
+                        <button
+                          className="btn"
+                          style={{ fontSize: "11px", padding: "4px 10px" }}
+                          onClick={() => setSelectedFeedback(fb)}
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Feedback Detail Modal */}
+      {selectedFeedback && (
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 100, padding: "16px",
+        }}>
+          <div className="card" style={{ width: "100%", maxWidth: "520px", maxHeight: "85vh", overflow: "auto" }}>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: "18px", paddingBottom: "14px", borderBottom: "1px solid var(--border)",
+            }}>
+              <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text)" }}>
+                Feedback Detail
+              </div>
+              <button onClick={() => setSelectedFeedback(null)} style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--text-muted)", fontSize: "20px", lineHeight: 1,
+              }}>×</button>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+              <CategoryBadge cat={selectedFeedback.category} />
+              {selectedFeedback.rating && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Stars value={selectedFeedback.rating} />
+                </div>
+              )}
+              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "auto" }}>
+                {formatDate(selectedFeedback.createdAt)}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: "16px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.6px", textTransform: "uppercase", marginBottom: "8px" }}>
+                Description
+              </div>
+              <div style={{
+                fontSize: "13px", color: "var(--text)", lineHeight: "1.65",
+                padding: "12px 14px",
+                background: "var(--bg)", border: "1px solid var(--border)",
+                borderRadius: "7px", whiteSpace: "pre-wrap",
+              }}>
+                {selectedFeedback.description}
+              </div>
+            </div>
+
+            {selectedFeedback.screenshot && (
+              <div style={{ marginBottom: "16px" }}>
+                <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.6px", textTransform: "uppercase", marginBottom: "8px" }}>
+                  Screenshot
+                </div>
+                <a href={selectedFeedback.screenshot} target="_blank" rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "6px",
+                    fontSize: "12px", color: "var(--accent)", textDecoration: "none",
+                    padding: "7px 12px", border: "1px solid var(--accent)",
+                    borderRadius: "6px", background: "var(--accent-light)",
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
+                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                  </svg>
+                  View Screenshot
+                </a>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "12px", borderTop: "1px solid var(--border)" }}>
+              <button className="btn" onClick={() => setSelectedFeedback(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
       {confirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100 }}>
           <div className="card" style={{ width: "100%", maxWidth: "360px", margin: "16px" }}>
