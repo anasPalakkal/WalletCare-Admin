@@ -18,9 +18,8 @@ const Login = () => {
     try {
       const res = await api.post("/auth/login", { email, password });
       const { accessToken, refreshToken, user } = res.data;
-      if (user.role !== "admin") {
+      if (user.role !== "admin" && user.role !== "superadmin") {  // Both allowed
         setError("Access denied. Admins only.");
-        setLoading(false);
         return;
       }
       login(accessToken, refreshToken, user);
@@ -69,7 +68,7 @@ const Login = () => {
               </label>
               <input
                 type="email"
-                placeholder="admin@walletcare.com"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

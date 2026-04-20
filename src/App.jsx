@@ -11,6 +11,8 @@ import Feedback from "./pages/Feedback";
 import Analytics from "./pages/Analytics";
 import Notifications from "./pages/Notifications";
 import Settings from "./pages/Settings";
+import CreateAdmin from "./pages/CreateAdmin";
+import ManageAdmins from "./pages/ManageAdmins";
 
 function App() {
   return (
@@ -27,6 +29,8 @@ function App() {
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/admin/manage" element={<ManageAdmins />} />
+            <Route path="/admin/create" element={<CreateAdmin />} />
           </Routes>
         </AuthProvider>
       </ThemeProvider>

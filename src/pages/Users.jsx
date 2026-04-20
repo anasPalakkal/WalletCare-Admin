@@ -21,16 +21,16 @@ const Users = () => {
   const { isMobile, isTablet } = useWindowSize();
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const lastUpdatedRef = useRef(null); // ← ref to track first load
+  const lastUpdatedRef = useRef(null);
 
   const fetchUsers = useCallback(async () => {
     setRefreshing(true);
     try {
-      if (!lastUpdatedRef.current) setLoading(true); // ← only on first load
+      if (!lastUpdatedRef.current) setLoading(true);
       const res = await api.get("/admin/users");
       setUsers(res.data.data);
-      lastUpdatedRef.current = new Date(); // ← update ref
-      setLastUpdated(new Date());          // ← update state for UI
+      lastUpdatedRef.current = new Date();
+      setLastUpdated(new Date());
       setError("");
     } catch (err) {
       setError("Failed to load users.");
@@ -38,7 +38,7 @@ const Users = () => {
       setRefreshing(false);
       setLoading(false);
     }
-  }, []); // ← empty deps, no lastUpdated here
+  }, []);
 
   useEffect(() => {
     fetchUsers();
