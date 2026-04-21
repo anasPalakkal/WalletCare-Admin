@@ -1,13 +1,24 @@
+import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const Sidebar = ({ isMobile, isOpen, onClose }) => {
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleConfirmLogout = () => {
+    setShowLogoutModal(false);
     logout();
     navigate("/login");
+  };
+
+  const handleCancelLogout = () => {
+    setShowLogoutModal(false);
   };
 
   const navItems = [
@@ -66,115 +77,213 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
     }),
   };
 
+  const modalOverlayStyle = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  };
+
+  const modalStyle = {
+    background: "var(--card-bg)",
+    borderRadius: "12px",
+    padding: "24px",
+    width: "90%",
+    maxWidth: "400px",
+    boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2)",
+  };
+
+  const modalHeaderStyle = {
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "var(--text)",
+    marginBottom: "12px",
+  };
+
+  const modalMessageStyle = {
+    fontSize: "14px",
+    color: "var(--text-muted)",
+    marginBottom: "24px",
+    lineHeight: "1.5",
+  };
+
+  const modalButtonsStyle = {
+    display: "flex",
+    gap: "12px",
+    justifyContent: "flex-end",
+  };
+
+  const cancelButtonStyle = {
+    padding: "8px 16px",
+    borderRadius: "8px",
+    border: "1px solid var(--border)",
+    background: "transparent",
+    color: "var(--text)",
+    fontSize: "14px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.15s",
+  };
+
+  const confirmButtonStyle = {
+    padding: "8px 16px",
+    borderRadius: "8px",
+    border: "none",
+    background: "#dc2626",
+    color: "white",
+    fontSize: "14px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.15s",
+  };
+
   return (
-    <aside style={sidebarStyle}>
+    <>
+      <aside style={sidebarStyle}>
 
-      {/* Logo + close button on mobile */}
-      <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{ width: "32px", height: "32px", background: "var(--accent)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="white">
-              <path d="M10 2C5.6 2 2 5.6 2 10s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm1 11H9V9h2v4zm0-6H9V5h2v2z" />
-            </svg>
+        {/* Logo + close button on mobile */}
+        <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "32px", height: "32px", background: "var(--accent)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="white">
+                <path d="M10 2C5.6 2 2 5.6 2 10s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm1 11H9V9h2v4zm0-6H9V5h2v2z" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "14px", color: "var(--text)" }}>WalletCare</div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Admin Panel</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontWeight: "600", fontSize: "14px", color: "var(--text)" }}>WalletCare</div>
-            <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Admin Panel</div>
-          </div>
+
+          {/* Close button — only on mobile */}
+          {isMobile && (
+            <button
+              onClick={onClose}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* Close button — only on mobile */}
-        {isMobile && (
-          <button
-            onClick={onClose}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}
-          >
-            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
+          {/* Main Menu */}
+          <div style={{ fontSize: "10px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.8px", textTransform: "uppercase", padding: "0 8px", marginBottom: "6px" }}>
+            Main Menu
+          </div>
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              onClick={isMobile ? onClose : undefined}
+              style={({ isActive }) => ({
+                display: "flex", alignItems: "center", gap: "10px",
+                padding: "8px 10px", borderRadius: "8px", marginBottom: "2px",
+                textDecoration: "none", fontSize: "13px",
+                fontWeight: isActive ? "500" : "400",
+                color: isActive ? "var(--accent)" : "var(--text-muted)",
+                background: isActive ? "var(--accent-light)" : "transparent",
+                transition: "all 0.15s",
+              })}
+            >
+              {item.icon}
+              {item.label}
+            </NavLink>
+          ))}
+
+          {/* Superadmin Section - Only visible to superadmins */}
+          {admin?.role === "superadmin" && (
+            <>
+              <div style={{ fontSize: "10px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.8px", textTransform: "uppercase", padding: "0 8px", marginTop: "16px", marginBottom: "6px" }}>
+                Admin Management
+              </div>
+              {superadminItems.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={isMobile ? onClose : undefined}
+                  style={({ isActive }) => ({
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "8px 10px", borderRadius: "8px", marginBottom: "2px",
+                    textDecoration: "none", fontSize: "13px",
+                    fontWeight: isActive ? "500" : "400",
+                    color: isActive ? "var(--accent)" : "var(--text-muted)",
+                    background: isActive ? "var(--accent-light)" : "transparent",
+                    transition: "all 0.15s",
+                  })}
+                >
+                  {item.icon}
+                  {item.label}
+                </NavLink>
+              ))}
+            </>
+          )}
+        </nav>
+
+        {/* Admin info + logout */}
+        <div style={{ padding: "12px 10px", borderTop: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", marginBottom: "4px" }}>
+            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "600", color: "var(--accent)", flexShrink: 0 }}>
+              {admin?.name?.charAt(0).toUpperCase() || "A"}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: "12px", fontWeight: "500", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {admin?.name || "Admin"}
+              </div>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {admin?.email || ""}
+              </div>
+            </div>
+          </div>
+          <button onClick={handleLogoutClick} className="btn" style={{ width: "100%", justifyContent: "center", fontSize: "12px" }}>
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
             </svg>
+            Sign out
           </button>
-        )}
-      </div>
-
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
-        {/* Main Menu */}
-        <div style={{ fontSize: "10px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.8px", textTransform: "uppercase", padding: "0 8px", marginBottom: "6px" }}>
-          Main Menu
         </div>
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={isMobile ? onClose : undefined}
-            style={({ isActive }) => ({
-              display: "flex", alignItems: "center", gap: "10px",
-              padding: "8px 10px", borderRadius: "8px", marginBottom: "2px",
-              textDecoration: "none", fontSize: "13px",
-              fontWeight: isActive ? "500" : "400",
-              color: isActive ? "var(--accent)" : "var(--text-muted)",
-              background: isActive ? "var(--accent-light)" : "transparent",
-              transition: "all 0.15s",
-            })}
-          >
-            {item.icon}
-            {item.label}
-          </NavLink>
-        ))}
 
-        {/* Superadmin Section - Only visible to superadmins */}
-        {admin?.role === "superadmin" && (
-          <>
-            <div style={{ fontSize: "10px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.8px", textTransform: "uppercase", padding: "0 8px", marginTop: "16px", marginBottom: "6px" }}>
-              Admin Management
-            </div>
-            {superadminItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={isMobile ? onClose : undefined}
-                style={({ isActive }) => ({
-                  display: "flex", alignItems: "center", gap: "10px",
-                  padding: "8px 10px", borderRadius: "8px", marginBottom: "2px",
-                  textDecoration: "none", fontSize: "13px",
-                  fontWeight: isActive ? "500" : "400",
-                  color: isActive ? "var(--accent)" : "var(--text-muted)",
-                  background: isActive ? "var(--accent-light)" : "transparent",
-                  transition: "all 0.15s",
-                })}
+      </aside>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div style={modalOverlayStyle} onClick={handleCancelLogout}>
+          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+            <h3 style={modalHeaderStyle}>Confirm Sign Out</h3>
+            <p style={modalMessageStyle}>
+              Are you sure you want to sign out? You'll need to log in again to access the admin panel.
+            </p>
+            <div style={modalButtonsStyle}>
+              <button 
+                style={cancelButtonStyle} 
+                onClick={handleCancelLogout}
+                onMouseEnter={(e) => e.target.style.background = "var(--hover-bg)"}
+                onMouseLeave={(e) => e.target.style.background = "transparent"}
               >
-                {item.icon}
-                {item.label}
-              </NavLink>
-            ))}
-          </>
-        )}
-      </nav>
-
-      {/* Admin info + logout */}
-      <div style={{ padding: "12px 10px", borderTop: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", marginBottom: "4px" }}>
-          <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "600", color: "var(--accent)", flexShrink: 0 }}>
-            {admin?.name?.charAt(0).toUpperCase() || "A"}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: "12px", fontWeight: "500", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {admin?.name || "Admin"}
-            </div>
-            <div style={{ fontSize: "10px", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {admin?.email || ""}
+                Cancel
+              </button>
+              <button 
+                style={confirmButtonStyle} 
+                onClick={handleConfirmLogout}
+                onMouseEnter={(e) => e.target.style.background = "#b91c1c"}
+                onMouseLeave={(e) => e.target.style.background = "#dc2626"}
+              >
+                Sign Out
+              </button>
             </div>
           </div>
         </div>
-        <button onClick={handleLogout} className="btn" style={{ width: "100%", justifyContent: "center", fontSize: "12px" }}>
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
-          </svg>
-          Sign out
-        </button>
-      </div>
-
-    </aside>
+      )}
+    </>
   );
 };
 
