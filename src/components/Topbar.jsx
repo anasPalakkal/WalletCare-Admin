@@ -1,16 +1,23 @@
 import { useTheme } from "../context/ThemeContext";
 import { useLayout } from "../context/LayoutContext";
+import { useRefresh } from "../context/RefreshContext";
 import useWindowSize from "../hooks/useWindowSize";
 
-const Topbar = ({ title, subtitle, onRefresh, refreshing, lastUpdated }) => {
+const Topbar = ({ title, subtitle }) => {
   const { theme, toggleTheme } = useTheme();
   const { openSidebar } = useLayout();
   const { isMobile } = useWindowSize();
+  
+  // Get refresh state from context
+  const { refreshing, lastUpdated, triggerRefresh } = useRefresh();
 
   const getSubtitle = () => {
     if (lastUpdated) return `Last updated ${lastUpdated.toLocaleTimeString()}`;
     return subtitle;
   };
+
+  // Check if refresh is available (page registered a refresh function)
+  const hasRefresh = triggerRefresh !== null;
 
   return (
     <header style={{
@@ -58,10 +65,10 @@ const Topbar = ({ title, subtitle, onRefresh, refreshing, lastUpdated }) => {
 
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 
-        {/* Refresh button — only shown if onRefresh is passed */}
-        {onRefresh && (
+        {/* Refresh button — automatically shown if page has refresh */}
+        {hasRefresh && (
           <button
-            onClick={onRefresh}
+            onClick={triggerRefresh}
             disabled={refreshing}
             className="btn"
             style={{

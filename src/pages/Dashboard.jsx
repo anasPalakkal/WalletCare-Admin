@@ -3,6 +3,7 @@ import useWindowSize from "../hooks/useWindowSize";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
+import { useRefresh } from "../context/RefreshContext";
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -72,10 +73,22 @@ const SectionCard = ({ title, accent, stats, chart, children }) => (
   </div>
 );
 
+// Enhanced options with hover effects
 const miniBarOpts = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { display: false }, tooltip: { enabled: true } },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      enabled: true,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleColor: '#fff',
+      bodyColor: '#fff',
+      padding: 10,
+      cornerRadius: 6,
+      displayColors: true,
+    }
+  },
   scales: {
     x: {
       ticks: { color: "#6b7280", font: { size: 9 }, maxRotation: 0 },
@@ -88,13 +101,57 @@ const miniBarOpts = {
       border: { display: false },
     },
   },
+  interaction: {
+    mode: 'index',
+    intersect: false,
+  },
+  onHover: (event, activeElements) => {
+    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+  },
 };
 
 const miniDoughnutOpts = {
   responsive: true,
   maintainAspectRatio: false,
   cutout: "68%",
-  plugins: { legend: { display: false }, tooltip: { enabled: true } },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      enabled: true,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      titleColor: '#fff',
+      bodyColor: '#fff',
+      padding: 10,
+      cornerRadius: 6,
+      displayColors: true,
+      callbacks: {
+        label: function(context) {
+          let label = context.label || '';
+          if (label) {
+            label += ': ';
+          }
+          if (context.parsed !== null) {
+            label += context.parsed.toLocaleString();
+          }
+          return label;
+        }
+      }
+    }
+  },
+  interaction: {
+    mode: 'point',
+    intersect: true,
+  },
+  onHover: (event, activeElements) => {
+    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+  },
+  elements: {
+    arc: {
+      hoverOffset: 6,
+      hoverBorderWidth: 2,
+      hoverBorderColor: '#fff',
+    }
+  }
 };
 
 const POLL_INTERVAL = 60000; // 60 seconds
@@ -110,13 +167,15 @@ const Dashboard = () => {
   const [accountAnalytics, setAccountAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  
+  //  Use refresh context
+  const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
 
   // ── useCallback so interval and button share the same reference ──────
   const fetchAll = useCallback(async () => {
-    setRefreshing(true);
+    handleRefreshStart();
     try {
+      if (!lastUpdatedRef.current) setLoading(true);
       const [
         statsRes, userRes, feedbackRes,
         txRes, goalRes, accountRes,
@@ -134,22 +193,26 @@ const Dashboard = () => {
       setTxAnalytics(txRes.data.data);
       setGoalAnalytics(goalRes.data.data);
       setAccountAnalytics(accountRes.data.data);
-      setLastUpdated(new Date());
       setError("");
     } catch (err) {
       setError("Failed to load dashboard data.");
       console.error("Dashboard error:", err);
     } finally {
-      setRefreshing(false);
+      handleRefreshEnd();
       setLoading(false);
     }
-  }, []);
+  }, [handleRefreshStart, handleRefreshEnd, lastUpdatedRef]);
+
+  // ── Register refresh with context ──────
+  useEffect(() => {
+    registerRefresh(fetchAll);
+  }, [registerRefresh, fetchAll]);
 
   // ── initial load + auto poll every 60s ───────────────────────────────
   useEffect(() => {
     fetchAll();
     const interval = setInterval(fetchAll, POLL_INTERVAL);
-    return () => clearInterval(interval); // cleanup on unmount
+    return () => clearInterval(interval);
   }, [fetchAll]);
 
   if (loading) return (
@@ -163,26 +226,22 @@ const Dashboard = () => {
 
   if (error) return (
     <Layout>
-      <Topbar
-        title="Dashboard"
-        subtitle="System overview"
-        onRefresh={fetchAll}
-        refreshing={refreshing}
-        lastUpdated={lastUpdated}
-      />
+      <Topbar title="Dashboard" subtitle="System overview" />
       <div className="main-content">
         <div style={{ color: "var(--danger)", padding: "20px" }}>{error}</div>
       </div>
     </Layout>
   );
 
-  // ── chart data ────────────────────────────────────────────────────────
+  // ── chart data with enhanced hover effects ────────────────────────────
 
   const userGrowthData = {
     labels: userAnalytics?.userGrowth?.map((d) => formatMonthLabel(d._id)) || [],
     datasets: [{
+      label: "New Users",
       data: userAnalytics?.userGrowth?.map((d) => d.count) || [],
       backgroundColor: "#4f46e5",
+      hoverBackgroundColor: "#6366f1",
       borderRadius: 4,
       barPercentage: 0.65,
     }],
@@ -196,6 +255,7 @@ const Dashboard = () => {
         txAnalytics?.totalExpense || 0,
       ],
       backgroundColor: ["#10b981", "#ef4444"],
+      hoverBackgroundColor: ["#059669", "#dc2626"],
       borderWidth: 0,
     }],
   };
@@ -209,6 +269,7 @@ const Dashboard = () => {
         goalAnalytics?.overdueGoals || 0,
       ],
       backgroundColor: ["#4f46e5", "#10b981", "#ef4444"],
+      hoverBackgroundColor: ["#6366f1", "#059669", "#dc2626"],
       borderWidth: 0,
     }],
   };
@@ -221,6 +282,7 @@ const Dashboard = () => {
         accountAnalytics?.bankBalance || 0,
       ],
       backgroundColor: ["#f59e0b", "#3b82f6"],
+      hoverBackgroundColor: ["#d97706", "#2563eb"],
       borderWidth: 0,
     }],
   };
@@ -228,8 +290,10 @@ const Dashboard = () => {
   const feedbackMonthData = {
     labels: feedbackAnalytics?.feedbackPerMonth?.map((d) => formatMonthLabel(d._id)) || [],
     datasets: [{
+      label: "Feedback Count",
       data: feedbackAnalytics?.feedbackPerMonth?.map((d) => d.count) || [],
-      backgroundColor: "#10b981",
+      backgroundColor: "#3710b9",
+      hoverBackgroundColor: "#4c1d95",
       borderRadius: 4,
       barPercentage: 0.65,
     }],
@@ -239,13 +303,7 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <Topbar
-        title="Dashboard"
-        subtitle="System overview"
-        onRefresh={fetchAll}
-        refreshing={refreshing}
-        lastUpdated={lastUpdated}
-      />
+      <Topbar title="Dashboard" subtitle="System overview" />
       <div className="main-content">
 
         {/* ── Row 1: Users + Transactions ── */}

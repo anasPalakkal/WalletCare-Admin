@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
+import { useRefresh } from "../context/RefreshContext";
 
 const POLL_INTERVAL = 60000;
 
@@ -16,9 +17,7 @@ const ManageAdmins = () => {
   const [error, setError] = useState("");
   const [actionLoading, setActionLoading] = useState(null);
   const [confirm, setConfirm] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const lastUpdatedRef = useRef(null);
+  const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
 
   // Redirect if not superadmin
   useEffect(() => {
@@ -28,21 +27,19 @@ const ManageAdmins = () => {
   }, [admin, navigate]);
 
   const fetchAdmins = useCallback(async () => {
-    setRefreshing(true);
+    handleRefreshStart();
     try {
       if (!lastUpdatedRef.current) setLoading(true);
       const res = await api.get("/admin/admins");
       setAdmins(res.data.data);
-      lastUpdatedRef.current = new Date();
-      setLastUpdated(new Date());
       setError("");
     } catch (err) {
       setError("Failed to load admins.");
     } finally {
-      setRefreshing(false);
+      handleRefreshEnd();
       setLoading(false);
     }
-  }, []);
+  }, [handleRefreshStart, handleRefreshEnd, lastUpdatedRef]);
 
   useEffect(() => {
     if (admin?.role === "superadmin") {
@@ -51,6 +48,10 @@ const ManageAdmins = () => {
       return () => clearInterval(interval);
     }
   }, [fetchAdmins, admin]);
+
+  useEffect(() => {
+    registerRefresh(fetchAdmins);
+  }, [registerRefresh, fetchAdmins]);
 
   const handleDemote = async (adminId) => {
     setActionLoading(adminId + "demote");
@@ -81,20 +82,20 @@ const ManageAdmins = () => {
   const formatDate = (date) =>
     date
       ? new Date(date).toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
       : "—";
 
   const getInitials = (name) =>
     name
       ? name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2)
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
       : "A";
 
   if (!admin || admin.role !== "superadmin") {
@@ -129,13 +130,7 @@ const ManageAdmins = () => {
 
   return (
     <Layout>
-      <Topbar
-        title="Manage Admins"
-        subtitle="View and manage administrators"
-        onRefresh={fetchAdmins}
-        refreshing={refreshing}
-        lastUpdated={lastUpdated}
-      />
+      <Topbar title="Manage Admins" subtitle="View and manage administrators" />
       <div className="main-content">
         {/* Header with Create Admin Button */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>

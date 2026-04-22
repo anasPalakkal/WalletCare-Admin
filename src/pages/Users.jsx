@@ -4,6 +4,7 @@ import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
 import useWindowSize from "../hooks/useWindowSize";
+import { useRefresh } from "../context/RefreshContext";
 
 const POLL_INTERVAL = 60000;
 
@@ -19,26 +20,26 @@ const Users = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
   const { isMobile, isTablet } = useWindowSize();
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const lastUpdatedRef = useRef(null);
+  const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
 
   const fetchUsers = useCallback(async () => {
-    setRefreshing(true);
+    handleRefreshStart(); // ← Instead of setRefreshing(true)
     try {
       if (!lastUpdatedRef.current) setLoading(true);
       const res = await api.get("/admin/users");
       setUsers(res.data.data);
-      lastUpdatedRef.current = new Date();
-      setLastUpdated(new Date());
       setError("");
     } catch (err) {
       setError("Failed to load users.");
     } finally {
-      setRefreshing(false);
+      handleRefreshEnd(); // ← Instead of setRefreshing(false) + setLastUpdated
       setLoading(false);
     }
-  }, []);
+  }, [handleRefreshStart, handleRefreshEnd, lastUpdatedRef]);
+  
+  useEffect(() => {
+    registerRefresh(fetchUsers);
+  }, [registerRefresh, fetchUsers]);
 
   useEffect(() => {
     fetchUsers();
@@ -119,13 +120,7 @@ const Users = () => {
 
   if (error) return (
     <Layout>
-      <Topbar
-        title="Users"
-        subtitle="Manage all user accounts"
-        onRefresh={fetchUsers}
-        refreshing={refreshing}
-        lastUpdated={lastUpdated}
-      />
+      <Topbar title="Users" subtitle="Manage all user accounts" />
       <div className="main-content">
         <div style={{ color: "var(--danger)" }}>{error}</div>
       </div>
@@ -134,13 +129,7 @@ const Users = () => {
 
   return (
     <Layout>
-      <Topbar
-        title="Users"
-        subtitle="Manage all user accounts"
-        onRefresh={fetchUsers}
-        refreshing={refreshing}
-        lastUpdated={lastUpdated}
-      />
+      <Topbar title="Users" subtitle="Manage all user accounts" />
       <div className="main-content">
 
         <div style={{

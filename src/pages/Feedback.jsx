@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
+import { useCallback } from "react";
+import { useRefresh } from "../context/RefreshContext";
 
 /* ─────────────────────────────────────────────────────────────
    Admin Feedback Page
@@ -81,32 +83,40 @@ const AdminFeedback = () => {
 
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
 
   /* ── fetch all — only real verified non-banned users ── */
-  const fetchFeedbacks = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/admin/feedback");
+  const fetchFeedbacks = useCallback(async () => {
+  handleRefreshStart();
+  try {
+    if (!lastUpdatedRef.current) setLoading(true);
+    const res = await api.get("/admin/feedback");
+    const real = (res.data.data || []).filter((f) => {
+      const u = f.userId;
+      if (!u) return false;
+      if (u.isBanned) return false;
+      if (!u.isEmailVerified) return false;
+      return true;
+    });
+    setFeedbacks(real);
+    setError("");
+  } catch {
+    setError("Failed to load feedback.");
+  } finally {
+    handleRefreshEnd();
+    setLoading(false);
+  }
+}, [handleRefreshStart, handleRefreshEnd, lastUpdatedRef]);
 
-      // Filter: only feedback from verified, non-banned users
-      const real = (res.data.data || []).filter((f) => {
-        const u = f.userId;
-        if (!u) return false;               // deleted user
-        if (u.isBanned) return false;       // banned user
-        if (!u.isEmailVerified) return false; // unverified email
-        return true;
-      });
+useEffect(() => {
+  fetchFeedbacks();
+}, [fetchFeedbacks]);
 
-      setFeedbacks(real);
-    } catch {
-      setError("Failed to load feedback.");
-    } finally {
-      setLoading(false);
-    }
-  };
+useEffect(() => {
+  registerRefresh(fetchFeedbacks);
+}, [registerRefresh, fetchFeedbacks]);
 
-  useEffect(() => { fetchFeedbacks(); }, []);
-  useEffect(() => { setCurrentPage(1); }, [search, filterCat, filterRating]);
+useEffect(() => { setCurrentPage(1); }, [search, filterCat, filterRating]);
 
   /* ── open detail ── */
   const openDetail = async (fb) => {

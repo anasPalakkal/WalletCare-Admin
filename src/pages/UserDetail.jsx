@@ -4,16 +4,17 @@ import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
 import useWindowSize from "../hooks/useWindowSize";
+import { useRefresh } from "../context/RefreshContext";
 
 const POLL_INTERVAL = 60000;
 
 const CATEGORY_META = {
-  "Bug Report":        { icon: "🐛", bg: "rgba(239,68,68,0.09)",   color: "#ef4444" },
-  "Feature Request":   { icon: "✨", bg: "rgba(16,185,129,0.09)",  color: "#10b981" },
-  "UI/UX Issue":       { icon: "🎨", bg: "rgba(139,92,246,0.09)",  color: "#8b5cf6" },
-  "Transaction Issue": { icon: "💳", bg: "rgba(245,158,11,0.09)",  color: "#f59e0b" },
-  "Security Concern":  { icon: "🔒", bg: "rgba(220,38,38,0.09)",   color: "#dc2626" },
-  "Other":             { icon: "💬", bg: "rgba(100,116,139,0.09)", color: "#64748b" },
+  "Bug Report": { icon: "🐛", bg: "rgba(239,68,68,0.09)", color: "#ef4444" },
+  "Feature Request": { icon: "✨", bg: "rgba(16,185,129,0.09)", color: "#10b981" },
+  "UI/UX Issue": { icon: "🎨", bg: "rgba(139,92,246,0.09)", color: "#8b5cf6" },
+  "Transaction Issue": { icon: "💳", bg: "rgba(245,158,11,0.09)", color: "#f59e0b" },
+  "Security Concern": { icon: "🔒", bg: "rgba(220,38,38,0.09)", color: "#dc2626" },
+  "Other": { icon: "💬", bg: "rgba(100,116,139,0.09)", color: "#64748b" },
 };
 
 const Stars = ({ value }) => (
@@ -58,12 +59,11 @@ const UserDetail = () => {
   const [actionLoading, setActionLoading] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const lastUpdatedRef = useRef(null);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
 
   const fetchAll = useCallback(async () => {
-    setRefreshing(true);
+    handleRefreshStart();
     try {
       if (!lastUpdatedRef.current) setLoading(true);
       const [userRes, overviewRes, feedbackRes] = await Promise.all([
@@ -73,29 +73,28 @@ const UserDetail = () => {
       ]);
       setUser(userRes.data.data);
       setOverview(overviewRes.data.data);
-      
-      // Filter feedbacks for this user only
       const userFeedbacks = (feedbackRes.data.data || []).filter(
         (f) => f.userId?._id === id
       );
       setFeedbacks(userFeedbacks);
-      
-      lastUpdatedRef.current = new Date();
-      setLastUpdated(new Date());
       setError("");
     } catch (err) {
-      setError("Failed to load user details.");
+      setError("Failed to load user data.");
     } finally {
-      setRefreshing(false);
+      handleRefreshEnd();
       setLoading(false);
     }
-  }, [id]);
+  }, [id, handleRefreshStart, handleRefreshEnd, lastUpdatedRef]);
 
   useEffect(() => {
     fetchAll();
     const interval = setInterval(fetchAll, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchAll]);
+
+  useEffect(() => {
+    registerRefresh(fetchAll);
+  }, [registerRefresh, fetchAll]);
 
   const handleAction = async (action) => {
     setActionLoading(action);
@@ -153,13 +152,7 @@ const UserDetail = () => {
 
   return (
     <Layout>
-      <Topbar
-        title="User Detail"
-        subtitle="View and manage user account"
-        onRefresh={fetchAll}
-        refreshing={refreshing}
-        lastUpdated={lastUpdated}
-      />
+      <Topbar title="User Details" subtitle={user?.name} />
       <div className="main-content">
 
         <button className="btn" onClick={() => navigate("/users")} style={{ marginBottom: "16px", fontSize: "12px" }}>
@@ -211,13 +204,13 @@ const UserDetail = () => {
               ].map((item) => (
                 <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
                   <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{item.label}</span>
-                  <span style={{ 
-                    fontSize: "12px", 
-                    fontWeight: "500", 
-                    color: item.danger ? "var(--danger)" : item.rating ? "#f59e0b" : "var(--text)", 
-                    maxWidth: "200px", 
-                    textAlign: "right", 
-                    wordBreak: "break-all" 
+                  <span style={{
+                    fontSize: "12px",
+                    fontWeight: "500",
+                    color: item.danger ? "var(--danger)" : item.rating ? "#f59e0b" : "var(--text)",
+                    maxWidth: "200px",
+                    textAlign: "right",
+                    wordBreak: "break-all"
                   }}>
                     {item.value}
                   </span>
@@ -484,8 +477,8 @@ const UserDetail = () => {
                     borderRadius: "6px", background: "var(--accent-light)",
                   }}>
                   <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/>
-                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/>
+                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
                   </svg>
                   View Screenshot
                 </a>
