@@ -226,9 +226,6 @@ const Analytics = () => {
       <Topbar
         title="Analytics"
         subtitle="Detailed system analytics"
-        onRefresh={fetchAll}
-        refreshing={refreshing}
-        lastUpdated={lastUpdated}
       />
       <div className="main-content">
         <div style={{ color: "var(--danger)" }}>{error}</div>
@@ -421,16 +418,22 @@ const Analytics = () => {
           </div>
         </div>
 
-        {/* ── Section 2: Feedback ── */}
-        <SectionTitle title="Feedback" sub="User feedback volume, categories and ratings" />
-        <div style={{ display: "grid", gridTemplateColumns: col3, gap: "12px", marginBottom: "14px" }}>
+        {/* ── Section 2: Feedback & Rating ── */}
+        <SectionTitle title="Feedback & Rating" sub="User feedback volume, categories and satisfaction ratings" />
+        <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
           <SummaryCard label="Total Feedback" value={stats?.totalFeedbacks} sub="All time" color="#f59e0b" onClick={() => navigate('/feedback')} />
           <SummaryCard label="This Month" value={feedbackAnalytics?.totalFeedbacksThisMonth} sub="Current month" color="#10b981" onClick={() => navigate('/feedback')} />
           <SummaryCard
-            label="Average Rating"
+            label="Feedback Rating"
             value={feedbackAnalytics?.avgRating ? `${feedbackAnalytics.avgRating.toFixed(1)} / 5` : "—"}
-            sub="Overall satisfaction"
+            sub="Feedback satisfaction"
             color="#8b5cf6"
+          />
+          <SummaryCard
+            label="User Rating"
+            value={stats?.avgUserRating ? `${stats.avgUserRating.toFixed(1)} / 5` : "—"}
+            sub="User given ratings"
+            color="#14b8a6"
           />
         </div>
 

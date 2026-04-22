@@ -448,20 +448,27 @@ const Dashboard = () => {
           </SectionCard>
         </div>
 
-        {/* ── Row 3: Feedback full width ── */}
+        {/* ── Row 3: Feedback & Rating full width ── */}
         <SectionCard
-          title="Feedback"
+          title="Feedback & Rating"
           accent="#f59e0b"
           stats={
             <>
               <MiniStat label="Total" value={stats?.totalFeedbacks} />
               <MiniStat label="This month" value={feedbackAnalytics?.totalFeedbacksThisMonth} color="#f59e0b" />
               <MiniStat
-                label="Avg rating"
+                label="Feedback Rating"
                 value={feedbackAnalytics?.avgRating
                   ? `${Number(feedbackAnalytics.avgRating).toFixed(1)} / 5`
                   : "—"}
-                color="#f59e0b"
+                color="#10b981"
+              />
+              <MiniStat
+                label="User Rating"
+                value={stats?.avgUserRating
+                  ? `${Number(stats.avgUserRating).toFixed(1)} / 5`
+                  : "—"}
+                color="#8b5cf6"
               />
             </>
           }
