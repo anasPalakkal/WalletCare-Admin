@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
 import useWindowSize from "../hooks/useWindowSize";
+import { useRefresh } from "../context/RefreshContext";
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale,
@@ -65,14 +66,13 @@ const Analytics = () => {
   const [accountAnalytics, setAccountAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const lastUpdatedRef = useRef(null); // ← ref to track first load
+  // ✅ ADD THIS:
+  const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
 
   const fetchAll = useCallback(async () => {
-    setRefreshing(true);
+    handleRefreshStart();
     try {
-      if (!lastUpdatedRef.current) setLoading(true); // ← only on first load
+      if (!lastUpdatedRef.current) setLoading(true);
       const [statsRes, userRes, feedbackRes, txRes, goalRes, accountRes] = await Promise.all([
         api.get("/admin/stats"),
         api.get("/admin/analytics/users"),
@@ -87,16 +87,14 @@ const Analytics = () => {
       setTxAnalytics(txRes.data.data);
       setGoalAnalytics(goalRes.data.data);
       setAccountAnalytics(accountRes.data.data);
-      lastUpdatedRef.current = new Date(); // ← update ref
-      setLastUpdated(new Date());          // ← update state for UI
       setError("");
     } catch (err) {
-      setError("Failed to load analytics data.");
+      setError("Failed to load analytics.");
     } finally {
-      setRefreshing(false);
+      handleRefreshEnd();
       setLoading(false);
     }
-  }, []); // ← empty deps, no lastUpdated
+  }, [handleRefreshStart, handleRefreshEnd, lastUpdatedRef]);
 
   useEffect(() => {
     fetchAll();
@@ -104,10 +102,38 @@ const Analytics = () => {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
+  useEffect(() => {
+    registerRefresh(fetchAll);
+  }, [registerRefresh, fetchAll]);
+
+  // Enhanced chart options with hover effects
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 12,
+        cornerRadius: 8,
+        displayColors: true,
+        callbacks: {
+          label: function (context) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y;
+            }
+            return label;
+          }
+        }
+      }
+    },
     scales: {
       x: {
         ticks: { color: "#6b7280", font: { size: 11 } },
@@ -121,13 +147,57 @@ const Analytics = () => {
         beginAtZero: true,
       },
     },
+    interaction: {
+      mode: 'index',
+      intersect: false,
+    },
+    onHover: (event, activeElements) => {
+      event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+    },
   };
 
   const doughnutOptions = {
     responsive: true,
     maintainAspectRatio: false,
     cutout: "65%",
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        padding: 12,
+        cornerRadius: 8,
+        displayColors: true,
+        callbacks: {
+          label: function (context) {
+            let label = context.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed !== null) {
+              label += context.parsed;
+            }
+            return label;
+          }
+        }
+      }
+    },
+    interaction: {
+      mode: 'point',
+      intersect: true,
+    },
+    onHover: (event, activeElements) => {
+      event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+    },
+    elements: {
+      arc: {
+        hoverOffset: 8,
+        hoverBorderWidth: 2,
+        hoverBorderColor: '#fff',
+      }
+    }
   };
 
   if (loading) return (
@@ -157,63 +227,60 @@ const Analytics = () => {
   const premiumPercent = stats?.totalUsers
     ? Math.round((stats.premiumUsers / stats.totalUsers) * 100) : 0;
 
-  const activePercent = stats?.totalUsers
-    ? Math.round((stats.activeUsers / stats.totalUsers) * 100) : 0;
+  const col4 = isMobile ? "1fr" : isTablet ? "1fr 1fr" : "repeat(4, 1fr)";
+  const col3 = isMobile ? "1fr" : isTablet ? "1fr 1fr" : "repeat(3, 1fr)";
+  const colWide = isMobile ? "1fr" : "2fr 1fr";
+  const colWideRev = isMobile ? "1fr" : "1fr 2fr";
 
-  const categoryColors = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6"];
-  const goalColors = ["#10b981", "#4f46e5", "#ef4444"];
+  const userGrowthColors = ["#4f46e5", "#6366f1", "#818cf8", "#a5b4fc", "#c7d2fe", "#e0e7ff"];
+  const feedbackCategoryColors = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const categoryColors = ["#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899"];
 
-  const col4 = isMobile ? "1fr" : isTablet ? "repeat(2, minmax(0,1fr))" : "repeat(4, minmax(0,1fr))";
-  const col2 = isMobile ? "1fr" : "1fr 1fr";
-  const colWide = isMobile ? "1fr" : "1.5fr 1fr";
-  const colWideRev = isMobile ? "1fr" : "1fr 1.5fr";
-  const colFeedback = isMobile ? "1fr" : "1fr 2fr";
-
+  // Enhanced chart data with hover configurations
   const userGrowthData = {
     labels: userAnalytics?.userGrowth?.map((d) => formatMonthLabel(d._id)) || [],
     datasets: [{
       label: "New Users",
       data: userAnalytics?.userGrowth?.map((d) => d.count) || [],
-      backgroundColor: "#4f46e5", borderRadius: 5, barPercentage: 0.5,
+      backgroundColor: userGrowthColors[0],
+      hoverBackgroundColor: userGrowthColors[1],
+      borderRadius: 6,
+      barPercentage: 0.7,
     }],
   };
 
-  const userStatusData = {
-    labels: ["Active", "Banned", "Scheduled Deletion"],
-    datasets: [{
-      data: [stats?.activeUsers || 0, stats?.bannedUsers || 0, stats?.scheduledForDeletion || 0],
-      backgroundColor: ["#10b981", "#ef4444", "#f59e0b"],
-      borderWidth: 0,
-    }],
-  };
-
-  const premiumData = {
+  const premiumVsFreeData = {
     labels: ["Premium", "Free"],
     datasets: [{
       data: [
         userAnalytics?.premiumVsFree?.premiumUsers || 0,
         userAnalytics?.premiumVsFree?.freeUsers || 0,
       ],
-      backgroundColor: ["#8b5cf6", "#e5e7eb"],
+      backgroundColor: ["#8b5cf6", "#6b7280"],
+      hoverBackgroundColor: ["#9333ea", "#4b5563"],
       borderWidth: 0,
     }],
   };
 
-  const feedbackCategoryData = {
+  const userStatusData = {
+    labels: ["Active", "Banned", "Scheduled for deletion"],
+    datasets: [{
+      data: [stats?.activeUsers || 0, stats?.bannedUsers || 0, stats?.scheduledForDeletion || 0],
+      backgroundColor: ["#10b981", "#ef4444", "#f59e0b"],
+      hoverBackgroundColor: ["#059669", "#dc2626", "#d97706"],
+      borderWidth: 0,
+    }],
+  };
+
+  const feedbackByCategoryData = {
     labels: feedbackAnalytics?.feedbackByCategory?.map((d) => d._id) || [],
     datasets: [{
+      label: "Feedback Count",
       data: feedbackAnalytics?.feedbackByCategory?.map((d) => d.count) || [],
-      backgroundColor: categoryColors,
-      borderWidth: 0,
-    }],
-  };
-
-  const feedbackMonthData = {
-    labels: feedbackAnalytics?.feedbackPerMonth?.map((d) => formatMonthLabel(d._id)) || [],
-    datasets: [{
-      label: "Feedbacks",
-      data: feedbackAnalytics?.feedbackPerMonth?.map((d) => d.count) || [],
-      backgroundColor: "#10b981", borderRadius: 5, barPercentage: 0.5,
+      backgroundColor: feedbackCategoryColors,
+      hoverBackgroundColor: feedbackCategoryColors.map(c => c + 'dd'),
+      borderRadius: 6,
+      barPercentage: 0.7,
     }],
   };
 
@@ -222,15 +289,19 @@ const Analytics = () => {
     datasets: [{
       label: "Transactions",
       data: txAnalytics?.monthlyVolume?.map((d) => d.count) || [],
-      backgroundColor: "#4f46e5", borderRadius: 5, barPercentage: 0.5,
+      backgroundColor: "#10b981",
+      hoverBackgroundColor: "#059669",
+      borderRadius: 6,
+      barPercentage: 0.7,
     }],
   };
 
   const topCategoriesData = {
-    labels: txAnalytics?.topCategories?.map((d) => d._id) || [],
+    labels: txAnalytics?.topCategories?.slice(0, 4).map((d) => d._id) || [],
     datasets: [{
-      data: txAnalytics?.topCategories?.map((d) => d.total) || [],
+      data: txAnalytics?.topCategories?.slice(0, 4).map((d) => d.total) || [],
       backgroundColor: categoryColors,
+      hoverBackgroundColor: categoryColors.map(c => c + 'dd'),
       borderWidth: 0,
     }],
   };
@@ -243,7 +314,8 @@ const Analytics = () => {
         goalAnalytics?.completedGoals || 0,
         goalAnalytics?.overdueGoals || 0,
       ],
-      backgroundColor: goalColors,
+      backgroundColor: ["#10b981", "#4f46e5", "#ef4444"],
+      hoverBackgroundColor: ["#059669", "#4338ca", "#dc2626"],
       borderWidth: 0,
     }],
   };
@@ -253,159 +325,119 @@ const Analytics = () => {
     datasets: [{
       label: "Goals",
       data: goalAnalytics?.goalsByCategory?.map((d) => d.count) || [],
-      backgroundColor: "#8b5cf6", borderRadius: 5, barPercentage: 0.5,
+      backgroundColor: "#8b5cf6",
+      hoverBackgroundColor: "#7c3aed",
+      borderRadius: 6,
+      barPercentage: 0.7,
     }],
   };
 
   const accountTypeData = {
     labels: ["Cash", "Bank"],
     datasets: [{
-      data: [
-        accountAnalytics?.cashAccounts || 0,
-        accountAnalytics?.bankAccounts || 0,
-      ],
+      data: [accountAnalytics?.cashAccounts || 0, accountAnalytics?.bankAccounts || 0],
       backgroundColor: ["#f59e0b", "#4f46e5"],
+      hoverBackgroundColor: ["#d97706", "#4338ca"],
       borderWidth: 0,
     }],
   };
 
   return (
     <Layout>
-      <Topbar
-        title="Analytics"
-        subtitle="Detailed system analytics"
-        onRefresh={fetchAll}
-        refreshing={refreshing}
-        lastUpdated={lastUpdated}
-      />
+      <Topbar title="Analytics" subtitle="Deep dive into system metrics" />
       <div className="main-content">
 
-        {/* ── Section 1: User Overview ── */}
-        <SectionTitle title="User Overview" sub="Registration, status and subscription breakdown" />
+        {/* ── Section 1: Users ── */}
+        <SectionTitle title="Users" sub="User growth, demographics and status breakdown" />
         <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Users" value={stats?.totalUsers} sub={`${activePercent}% active`} color="#4f46e5" />
-          <SummaryCard label="Active Users" value={stats?.activeUsers} sub={`${activePercent}% of total`} color="#10b981" />
-          <SummaryCard label="Banned Users" value={stats?.bannedUsers} sub="Currently blocked" color="#ef4444" />
+          <SummaryCard label="Total Users" value={stats?.totalUsers} sub="All time" color="#4f46e5" />
+          <SummaryCard label="Active Users" value={stats?.activeUsers} sub="Currently active" color="#10b981" />
           <SummaryCard label="Premium Users" value={stats?.premiumUsers} sub={`${premiumPercent}% of total`} color="#8b5cf6" />
+          <SummaryCard label="Banned Users" value={stats?.bannedUsers} sub="Suspended accounts" color="#ef4444" />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: colWide, gap: "14px", marginBottom: "20px" }}>
           <div className="card">
             <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>User Growth</div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Monthly new registrations</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>New registrations per month</div>
             <div style={{ position: "relative", height: "200px" }}>
               <Bar data={userGrowthData} options={chartOptions} />
             </div>
           </div>
           <div className="card">
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>User Status</div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Active vs banned vs scheduled</div>
-            <div style={{ position: "relative", height: "140px" }}>
-              <Doughnut data={userStatusData} options={doughnutOptions} />
+            <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Premium vs Free</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>User subscription status</div>
+            <div style={{ position: "relative", height: "150px" }}>
+              <Doughnut data={premiumVsFreeData} options={doughnutOptions} />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
-              {[
-                { label: "Active", value: stats?.activeUsers, color: "#10b981" },
-                { label: "Banned", value: stats?.bannedUsers, color: "#ef4444" },
-                { label: "Scheduled", value: stats?.scheduledForDeletion, color: "#f59e0b" },
-              ].map((item) => (
-                <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <div style={{ width: "9px", height: "9px", borderRadius: "2px", background: item.color }} />
-                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{item.label}</span>
-                  </div>
-                  <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text)" }}>
-                    {item.value} ({stats?.totalUsers ? Math.round((item.value / stats.totalUsers) * 100) : 0}%)
-                  </span>
+            <div style={{ display: "flex", justifyContent: "space-around", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border)" }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Premium</div>
+                <div style={{ fontSize: "18px", fontWeight: "700", color: "#8b5cf6" }}>
+                  {userAnalytics?.premiumVsFree?.premiumUsers || 0}
                 </div>
-              ))}
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Free</div>
+                <div style={{ fontSize: "18px", fontWeight: "700", color: "#6b7280" }}>
+                  {userAnalytics?.premiumVsFree?.freeUsers || 0}
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── Section 2: Subscription ── */}
-        <SectionTitle title="Subscription" sub="Premium vs free user distribution" />
-        <div style={{ display: "grid", gridTemplateColumns: colFeedback, gap: "14px", marginBottom: "20px" }}>
-          <div className="card">
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Premium vs Free</div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Current distribution</div>
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <div style={{ position: "relative", height: "130px", width: "130px", flexShrink: 0 }}>
-                <Doughnut data={premiumData} options={doughnutOptions} />
-              </div>
-              <div style={{ flex: 1 }}>
-                {[
-                  { label: "Premium", value: userAnalytics?.premiumVsFree?.premiumUsers || 0, color: "#8b5cf6" },
-                  { label: "Free", value: userAnalytics?.premiumVsFree?.freeUsers || 0, color: "#e5e7eb" },
-                ].map((item) => (
-                  <div key={item.label} style={{ marginBottom: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
-                      <div style={{ width: "9px", height: "9px", borderRadius: "2px", background: item.color }} />
-                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{item.label}</span>
-                    </div>
-                    <div style={{ fontSize: "20px", fontWeight: "700", color: "var(--text)" }}>
-                      {item.value}
-                      <span style={{ fontSize: "11px", color: "var(--text-muted)", marginLeft: "4px" }}>
-                        ({stats?.totalUsers ? Math.round((item.value / stats.totalUsers) * 100) : 0}%)
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        <div className="card" style={{ marginBottom: "20px" }}>
+          <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>User Status Distribution</div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Active, banned and scheduled for deletion</div>
+          <div style={{ position: "relative", height: "200px", maxWidth: "400px", margin: "0 auto" }}>
+            <Doughnut data={userStatusData} options={doughnutOptions} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-around", marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--border)", flexWrap: "wrap", gap: "12px" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Active</div>
+              <div style={{ fontSize: "18px", fontWeight: "700", color: "#10b981" }}>{stats?.activeUsers || 0}</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Banned</div>
+              <div style={{ fontSize: "18px", fontWeight: "700", color: "#ef4444" }}>{stats?.bannedUsers || 0}</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Scheduled</div>
+              <div style={{ fontSize: "18px", fontWeight: "700", color: "#f59e0b" }}>{stats?.scheduledForDeletion || 0}</div>
             </div>
           </div>
+        </div>
 
-          <div className="card">
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Feedback Overview</div>
-            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Monthly submissions and avg rating</div>
-            <div style={{ display: "grid", gridTemplateColumns: col2, gap: "16px" }}>
-              <div style={{ position: "relative", height: "160px" }}>
-                <Bar data={feedbackMonthData} options={chartOptions} />
-              </div>
-              <div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "8px" }}>By category</div>
-                <div style={{ position: "relative", height: "130px" }}>
-                  <Doughnut data={feedbackCategoryData} options={doughnutOptions} />
-                </div>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "20px", marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border)" }}>
-              <div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>This month</div>
-                <div style={{ fontSize: "18px", fontWeight: "700", color: "var(--text)" }}>{feedbackAnalytics?.totalFeedbacksThisMonth || 0}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Avg rating</div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: "4px" }}>
-                  <span style={{ fontSize: "18px", fontWeight: "700", color: "var(--text)" }}>
-                    {feedbackAnalytics?.avgRating ? Number(feedbackAnalytics.avgRating).toFixed(1) : "—"}
-                  </span>
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>/ 5</span>
-                </div>
-                <div style={{ display: "flex", gap: "2px", marginTop: "2px" }}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <svg key={star} width="12" height="12" viewBox="0 0 20 20"
-                      fill={star <= Math.round(feedbackAnalytics?.avgRating || 0) ? "#f59e0b" : "var(--border)"}>
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Total</div>
-                <div style={{ fontSize: "18px", fontWeight: "700", color: "var(--text)" }}>{stats?.totalFeedbacks || 0}</div>
-              </div>
-            </div>
+        {/* ── Section 2: Feedback ── */}
+        <SectionTitle title="Feedback" sub="User feedback volume, categories and ratings" />
+        <div style={{ display: "grid", gridTemplateColumns: col3, gap: "12px", marginBottom: "14px" }}>
+          <SummaryCard label="Total Feedback" value={stats?.totalFeedbacks} sub="All time" color="#f59e0b" />
+          <SummaryCard label="This Month" value={feedbackAnalytics?.totalFeedbacksThisMonth} sub="Current month" color="#10b981" />
+          <SummaryCard
+            label="Average Rating"
+            value={feedbackAnalytics?.avgRating ? `${feedbackAnalytics.avgRating.toFixed(1)} / 5` : "—"}
+            sub="Overall satisfaction"
+            color="#8b5cf6"
+          />
+        </div>
+
+        <div className="card" style={{ marginBottom: "20px" }}>
+          <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text)", marginBottom: "4px" }}>Feedback by Category</div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "14px" }}>Distribution across different categories</div>
+          <div style={{ position: "relative", height: "220px" }}>
+            <Bar data={feedbackByCategoryData} options={chartOptions} />
           </div>
         </div>
 
         {/* ── Section 3: Transactions ── */}
-        <SectionTitle title="Transactions" sub="System wide income, expense and volume trends" />
+        <SectionTitle title="Transactions" sub="Transaction volume, income/expense breakdown and top categories" />
         <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Transactions" value={txAnalytics?.totalTransactions} sub="Completed" color="#4f46e5" />
-          <SummaryCard label="Total Income" value={formatCurrency(txAnalytics?.totalIncome)} sub={`${txAnalytics?.incomeCount} transactions`} color="#10b981" />
-          <SummaryCard label="Total Expense" value={formatCurrency(txAnalytics?.totalExpense)} sub={`${txAnalytics?.expenseCount} transactions`} color="#ef4444" />
-          <SummaryCard label="Net Balance"
+          <SummaryCard label="Total Transactions" value={txAnalytics?.totalTransactions} sub="All time" color="#10b981" />
+          <SummaryCard label="Total Income" value={formatCurrency(txAnalytics?.totalIncome)} sub={`${txAnalytics?.incomeCount || 0} transactions`} color="#10b981" />
+          <SummaryCard label="Total Expense" value={formatCurrency(txAnalytics?.totalExpense)} sub={`${txAnalytics?.expenseCount || 0} transactions`} color="#ef4444" />
+          <SummaryCard
+            label="Net Balance"
             value={formatCurrency(Math.abs((txAnalytics?.totalIncome || 0) - (txAnalytics?.totalExpense || 0)))}
             sub={(txAnalytics?.totalIncome || 0) >= (txAnalytics?.totalExpense || 0) ? "Net positive" : "Net negative"}
             color="#14b8a6"
