@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
@@ -31,8 +32,18 @@ const formatCurrency = (amount) => {
   return `₹${amount}`;
 };
 
-const SummaryCard = ({ label, value, sub, color }) => (
-  <div className="card" style={{ borderTop: `3px solid ${color}` }}>
+const SummaryCard = ({ label, value, sub, color, onClick }) => (
+  <div 
+    className="card" 
+    style={{ 
+      borderTop: `3px solid ${color}`,
+      cursor: onClick ? 'pointer' : 'default',
+      transition: 'all 0.2s ease'
+    }}
+    onClick={onClick}
+    onMouseEnter={(e) => onClick && (e.currentTarget.style.transform = 'translateY(-2px)')}
+    onMouseLeave={(e) => onClick && (e.currentTarget.style.transform = 'translateY(0)')}
+  >
     <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
       {label}
     </div>
@@ -57,6 +68,7 @@ const SectionTitle = ({ title, sub }) => (
 const POLL_INTERVAL = 60000;
 
 const Analytics = () => {
+  const navigate = useNavigate();
   const { isMobile, isTablet } = useWindowSize();
   const [stats, setStats] = useState(null);
   const [userAnalytics, setUserAnalytics] = useState(null);
@@ -350,10 +362,10 @@ const Analytics = () => {
         {/* ── Section 1: Users ── */}
         <SectionTitle title="Users" sub="User growth, demographics and status breakdown" />
         <div style={{ display: "grid", gridTemplateColumns: col4, gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Users" value={stats?.totalUsers} sub="All time" color="#4f46e5" />
-          <SummaryCard label="Active Users" value={stats?.activeUsers} sub="Currently active" color="#10b981" />
-          <SummaryCard label="Premium Users" value={stats?.premiumUsers} sub={`${premiumPercent}% of total`} color="#8b5cf6" />
-          <SummaryCard label="Banned Users" value={stats?.bannedUsers} sub="Suspended accounts" color="#ef4444" />
+          <SummaryCard label="Total Users" value={stats?.totalUsers} sub="All time" color="#4f46e5" onClick={() => navigate('/users')} />
+          <SummaryCard label="Active Users" value={stats?.activeUsers} sub="Currently active" color="#10b981" onClick={() => navigate('/users?filter=active')} />
+          <SummaryCard label="Premium Users" value={stats?.premiumUsers} sub={`${premiumPercent}% of total`} color="#8b5cf6" onClick={() => navigate('/users?filter=premium')} />
+          <SummaryCard label="Banned Users" value={stats?.bannedUsers} sub="Suspended accounts" color="#ef4444" onClick={() => navigate('/users?filter=banned')} />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: colWide, gap: "14px", marginBottom: "20px" }}>
@@ -412,8 +424,8 @@ const Analytics = () => {
         {/* ── Section 2: Feedback ── */}
         <SectionTitle title="Feedback" sub="User feedback volume, categories and ratings" />
         <div style={{ display: "grid", gridTemplateColumns: col3, gap: "12px", marginBottom: "14px" }}>
-          <SummaryCard label="Total Feedback" value={stats?.totalFeedbacks} sub="All time" color="#f59e0b" />
-          <SummaryCard label="This Month" value={feedbackAnalytics?.totalFeedbacksThisMonth} sub="Current month" color="#10b981" />
+          <SummaryCard label="Total Feedback" value={stats?.totalFeedbacks} sub="All time" color="#f59e0b" onClick={() => navigate('/feedback')} />
+          <SummaryCard label="This Month" value={feedbackAnalytics?.totalFeedbacksThisMonth} sub="Current month" color="#10b981" onClick={() => navigate('/feedback')} />
           <SummaryCard
             label="Average Rating"
             value={feedbackAnalytics?.avgRating ? `${feedbackAnalytics.avgRating.toFixed(1)} / 5` : "—"}

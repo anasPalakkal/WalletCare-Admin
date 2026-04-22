@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
 import api from "../api/axios";
@@ -10,6 +10,8 @@ const POLL_INTERVAL = 60000;
 
 const Users = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -21,6 +23,22 @@ const Users = () => {
   const usersPerPage = 10;
   const { isMobile, isTablet } = useWindowSize();
   const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
+
+  // Handle URL filter parameter
+  useEffect(() => {
+    const filterParam = searchParams.get('filter');
+    if (filterParam && ['all', 'active', 'banned', 'scheduled', 'premium'].includes(filterParam)) {
+      setFilter(filterParam);
+    }
+  }, [searchParams]);
+
+  // Set filter from URL params on mount
+  useEffect(() => {
+    const filterParam = searchParams.get('filter');
+    if (filterParam && ['all', 'active', 'banned', 'scheduled', 'premium'].includes(filterParam)) {
+      setFilter(filterParam);
+    }
+  }, [location]);
 
   const fetchUsers = useCallback(async () => {
     handleRefreshStart(); // ← Instead of setRefreshing(true)
