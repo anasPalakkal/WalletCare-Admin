@@ -10,14 +10,11 @@ const LayoutInner = ({ children }) => {
     <div className="layout">
       <Sidebar isMobile={isMobile} isOpen={sidebarOpen} onClose={closeSidebar} />
 
+      {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
         <div
           onClick={closeSidebar}
-          style={{
-            position: "fixed", inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            zIndex: 40,
-          }}
+          className="fixed inset-0 bg-black/45 z-40"
         />
       )}
 

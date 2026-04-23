@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
+import logo from "../assets/PanelLogo.jpeg";
 
 const Login = () => {
   const { login } = useAuth();
@@ -40,16 +41,16 @@ const Login = () => {
 
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <div style={{
-            width: "44px", height: "44px", background: "var(--accent)",
+            width: "44px", height: "44px",
             borderRadius: "12px", display: "flex", alignItems: "center",
-            justifyContent: "center", margin: "0 auto 12px"
+            justifyContent: "center", margin: "0 auto 12px",
+            overflow: "hidden"
           }}>
-            <svg width="22" height="22" viewBox="0 0 20 20" fill="white">
-              <path d="M10 2C5.6 2 2 5.6 2 10s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm1 11H9V9h2v4zm0-6H9V5h2v2z" />
-            </svg>
+            <img src={logo} alt="GreenPouch Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
           <h1 style={{ fontSize: "20px", fontWeight: "600", color: "var(--text)" }}>
-            WalletCare
+            <span style={{ color: "#22c55e" }}>Green</span>
+            <span>Pouch</span>
           </h1>
           <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "4px" }}>
             Admin Panel — sign in to continue
@@ -114,7 +115,7 @@ const Login = () => {
         </div>
 
         <p style={{ textAlign: "center", fontSize: "11px", color: "var(--text-muted)", marginTop: "16px" }}>
-          WalletCare Admin v1.0
+          GreenPouch Admin v1.0
         </p>
       </div>
     </div>

@@ -1,25 +1,20 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import logo from "../assets/PanelLogo.jpeg";
 
 const Sidebar = ({ isMobile, isOpen, onClose }) => {
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const handleLogoutClick = () => {
-    setShowLogoutModal(true);
-  };
-
+  const handleLogoutClick = () => setShowLogoutModal(true);
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
     logout();
     navigate("/login");
   };
-
-  const handleCancelLogout = () => {
-    setShowLogoutModal(false);
-  };
+  const handleCancelLogout = () => setShowLogoutModal(false);
 
   const navItems = [
     {
@@ -48,7 +43,6 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
     },
   ];
 
-  // Superadmin-only items
   const superadminItems = [
     {
       label: "Manage Admins", path: "/admin/manage",
@@ -56,116 +50,37 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
     },
   ];
 
-  const sidebarStyle = {
-    width: "220px",
-    background: "var(--sidebar-bg)",
-    borderRight: "1px solid var(--border)",
-    display: "flex",
-    flexDirection: "column",
-    height: "100vh",
-    flexShrink: 0,
-    ...(isMobile ? {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      zIndex: 50,
-      transform: isOpen ? "translateX(0)" : "translateX(-100%)",
-      transition: "transform 0.25s ease",
-    } : {
-      position: "sticky",
-      top: 0,
-    }),
-  };
-
-  const modalOverlayStyle = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: "rgba(0, 0, 0, 0.5)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1000,
-  };
-
-  const modalStyle = {
-    background: "var(--card-bg)",
-    borderRadius: "12px",
-    padding: "24px",
-    width: "90%",
-    maxWidth: "400px",
-    boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2)",
-  };
-
-  const modalHeaderStyle = {
-    fontSize: "18px",
-    fontWeight: "600",
-    color: "var(--text)",
-    marginBottom: "12px",
-  };
-
-  const modalMessageStyle = {
-    fontSize: "14px",
-    color: "var(--text-muted)",
-    marginBottom: "24px",
-    lineHeight: "1.5",
-  };
-
-  const modalButtonsStyle = {
-    display: "flex",
-    gap: "12px",
-    justifyContent: "flex-end",
-  };
-
-  const cancelButtonStyle = {
-    padding: "8px 16px",
-    borderRadius: "8px",
-    border: "1px solid var(--border)",
-    background: "transparent",
-    color: "var(--text)",
-    fontSize: "14px",
-    fontWeight: "500",
-    cursor: "pointer",
-    transition: "all 0.15s",
-  };
-
-  const confirmButtonStyle = {
-    padding: "8px 16px",
-    borderRadius: "8px",
-    border: "none",
-    background: "#dc2626",
-    color: "white",
-    fontSize: "14px",
-    fontWeight: "500",
-    cursor: "pointer",
-    transition: "all 0.15s",
-  };
-
   return (
     <>
-      <aside style={sidebarStyle}>
-
-        {/* Logo + close button on mobile */}
-        <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "32px", height: "32px", background: "var(--accent)", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="white">
-                <path d="M10 2C5.6 2 2 5.6 2 10s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8zm1 11H9V9h2v4zm0-6H9V5h2v2z" />
-              </svg>
+      {/* ── Sidebar ── */}
+      <aside
+        className={[
+          "w-[220px] bg-[var(--sidebar-bg)] border-r border-[var(--border)]",
+          "flex flex-col h-screen flex-shrink-0",
+          isMobile
+            ? `fixed top-0 left-0 z-50 transition-transform duration-[250ms] ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+            : "sticky top-0",
+        ].join(" ")}
+      >
+        {/* Logo + close button */}
+        <div className="px-4 py-5 border-b border-[var(--border)] flex items-center justify-between">
+          <div className="flex items-center gap-[10px]">
+            <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+              <img src={logo} alt="GreenPouch Logo" className="w-full h-full object-cover" />
             </div>
             <div>
-              <div style={{ fontWeight: "600", fontSize: "14px", color: "var(--text)" }}>WalletCare</div>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>Admin Panel</div>
+              <div className="font-semibold text-sm text-[var(--text)]">
+                <span className="text-green-500">Green</span>
+                <span>Pouch</span>
+              </div>
+              <div className="text-[10px] text-[var(--text-muted)]">Admin Panel</div>
             </div>
           </div>
 
-          {/* Close button — only on mobile */}
           {isMobile && (
             <button
               onClick={onClose}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", padding: "4px" }}
+              className="bg-transparent border-none cursor-pointer text-[var(--text-muted)] p-1"
             >
               <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -175,35 +90,34 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
-          {/* Main Menu */}
-          <div style={{ fontSize: "10px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.8px", textTransform: "uppercase", padding: "0 8px", marginBottom: "6px" }}>
+        <nav className="flex-1 px-[10px] py-3 overflow-y-auto">
+          <div className="text-[10px] font-semibold text-[var(--text-muted)] tracking-[0.8px] uppercase px-2 mb-[6px]">
             Main Menu
           </div>
+
           {navItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               onClick={isMobile ? onClose : undefined}
-              style={({ isActive }) => ({
-                display: "flex", alignItems: "center", gap: "10px",
-                padding: "8px 10px", borderRadius: "8px", marginBottom: "2px",
-                textDecoration: "none", fontSize: "13px",
-                fontWeight: isActive ? "500" : "400",
-                color: isActive ? "var(--accent)" : "var(--text-muted)",
-                background: isActive ? "var(--accent-light)" : "transparent",
-                transition: "all 0.15s",
-              })}
+              className={({ isActive }) =>
+                [
+                  "flex items-center gap-[10px] px-[10px] py-2 rounded-lg mb-[2px]",
+                  "no-underline text-[13px] transition-all duration-150",
+                  isActive
+                    ? "font-medium text-[var(--accent)] bg-[var(--accent-light)]"
+                    : "font-normal text-[var(--text-muted)] bg-transparent hover:bg-[var(--hover-bg)]",
+                ].join(" ")
+              }
             >
               {item.icon}
               {item.label}
             </NavLink>
           ))}
 
-          {/* Superadmin Section - Only visible to superadmins */}
           {admin?.role === "superadmin" && (
             <>
-              <div style={{ fontSize: "10px", fontWeight: "600", color: "var(--text-muted)", letterSpacing: "0.8px", textTransform: "uppercase", padding: "0 8px", marginTop: "16px", marginBottom: "6px" }}>
+              <div className="text-[10px] font-semibold text-[var(--text-muted)] tracking-[0.8px] uppercase px-2 mt-4 mb-[6px]">
                 Admin Management
               </div>
               {superadminItems.map((item) => (
@@ -211,15 +125,15 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
                   key={item.path}
                   to={item.path}
                   onClick={isMobile ? onClose : undefined}
-                  style={({ isActive }) => ({
-                    display: "flex", alignItems: "center", gap: "10px",
-                    padding: "8px 10px", borderRadius: "8px", marginBottom: "2px",
-                    textDecoration: "none", fontSize: "13px",
-                    fontWeight: isActive ? "500" : "400",
-                    color: isActive ? "var(--accent)" : "var(--text-muted)",
-                    background: isActive ? "var(--accent-light)" : "transparent",
-                    transition: "all 0.15s",
-                  })}
+                  className={({ isActive }) =>
+                    [
+                      "flex items-center gap-[10px] px-[10px] py-2 rounded-lg mb-[2px]",
+                      "no-underline text-[13px] transition-all duration-150",
+                      isActive
+                        ? "font-medium text-[var(--accent)] bg-[var(--accent-light)]"
+                        : "font-normal text-[var(--text-muted)] bg-transparent hover:bg-[var(--hover-bg)]",
+                    ].join(" ")
+                  }
                 >
                   {item.icon}
                   {item.label}
@@ -230,52 +144,57 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
         </nav>
 
         {/* Admin info + logout */}
-        <div style={{ padding: "12px 10px", borderTop: "1px solid var(--border)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 10px", marginBottom: "4px" }}>
-            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "var(--accent-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "600", color: "var(--accent)", flexShrink: 0 }}>
+        <div className="px-[10px] py-3 border-t border-[var(--border)]">
+          <div className="flex items-center gap-2 px-[10px] py-2 mb-1">
+            <div className="w-7 h-7 rounded-full bg-[var(--accent-light)] flex items-center justify-center text-[11px] font-semibold text-[var(--accent)] flex-shrink-0">
               {admin?.name?.charAt(0).toUpperCase() || "A"}
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: "12px", fontWeight: "500", color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div className="min-w-0">
+              <div className="text-xs font-medium text-[var(--text)] whitespace-nowrap overflow-hidden text-ellipsis">
                 {admin?.name || "Admin"}
               </div>
-              <div style={{ fontSize: "10px", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div className="text-[10px] text-[var(--text-muted)] whitespace-nowrap overflow-hidden text-ellipsis">
                 {admin?.email || ""}
               </div>
             </div>
           </div>
-          <button onClick={handleLogoutClick} className="btn" style={{ width: "100%", justifyContent: "center", fontSize: "12px" }}>
+
+          <button
+            onClick={handleLogoutClick}
+            className="btn w-full justify-center text-xs"
+          >
             <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 011 1v12a1 1 0 11-2 0V4a1 1 0 011-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
             </svg>
             Sign out
           </button>
         </div>
-
       </aside>
 
-      {/* Logout Confirmation Modal */}
+      {/* ── Logout Modal ── */}
       {showLogoutModal && (
-        <div style={modalOverlayStyle} onClick={handleCancelLogout}>
-          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <h3 style={modalHeaderStyle}>Confirm Sign Out</h3>
-            <p style={modalMessageStyle}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1000]"
+          onClick={handleCancelLogout}
+        >
+          <div
+            className="card w-[90%] max-w-[400px] shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-[var(--text)] mb-3">Confirm Sign Out</h3>
+            <p className="text-sm text-[var(--text-muted)] mb-6 leading-relaxed">
               Are you sure you want to sign out? You'll need to log in again to access the admin panel.
             </p>
-            <div style={modalButtonsStyle}>
-              <button 
-                style={cancelButtonStyle} 
+            <div className="flex gap-3 justify-end">
+              <button
+                className="btn"
                 onClick={handleCancelLogout}
-                onMouseEnter={(e) => e.target.style.background = "var(--hover-bg)"}
-                onMouseLeave={(e) => e.target.style.background = "transparent"}
               >
                 Cancel
               </button>
-              <button 
-                style={confirmButtonStyle} 
+              <button
+                className="btn btn-danger"
                 onClick={handleConfirmLogout}
-                onMouseEnter={(e) => e.target.style.background = "#b91c1c"}
-                onMouseLeave={(e) => e.target.style.background = "#dc2626"}
               >
                 Sign Out
               </button>

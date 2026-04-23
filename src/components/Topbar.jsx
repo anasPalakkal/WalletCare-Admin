@@ -112,14 +112,15 @@ const Topbar = ({ title, subtitle }) => {
           )}
         </button>
 
-        <div style={{
+        {/* <div style={{
           background: "var(--accent-light)",
           color: "var(--accent-text)",
           fontSize: "11px", fontWeight: "500",
           padding: "4px 10px", borderRadius: "20px",
         }}>
           Admin
-        </div>
+        </div> */}
+        
       </div>
 
       {/* Spin animation for refresh icon */}

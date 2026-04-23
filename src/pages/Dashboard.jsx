@@ -32,40 +32,29 @@ const formatCurrency = (val) => {
   return `₹${val}`;
 };
 
+// ── Mini stat block ───────────────────────────────────────────
 const MiniStat = ({ label, value, color }) => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-    <div style={{
-      fontSize: "10px", color: "var(--text-muted)",
-      textTransform: "uppercase", letterSpacing: "0.5px",
-    }}>
+  <div className="flex flex-col gap-[2px]">
+    <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.5px]">
       {label}
     </div>
-    <div style={{
-      fontSize: "18px", fontWeight: "700",
-      color: color || "var(--text)",
-    }}>
+    <div className="text-lg font-bold" style={{ color: color || "var(--text)" }}>
       {value ?? "—"}
     </div>
   </div>
 );
 
+// ── Section card with colored top border ──────────────────────
 const SectionCard = ({ title, accent, stats, chart, children }) => (
   <div className="card" style={{ borderTop: `2px solid ${accent}` }}>
-    <div style={{
-      fontSize: "12px", fontWeight: "600",
-      color: "var(--text)", marginBottom: "14px",
-      textTransform: "uppercase", letterSpacing: "0.5px",
-    }}>
+    <div className="text-xs font-semibold text-[var(--text)] mb-[14px] uppercase tracking-[0.5px]">
       {title}
     </div>
-    <div style={{ display: "flex", alignItems: "flex-start", gap: "16px" }}>
-      <div style={{
-        display: "flex", flexDirection: "column",
-        gap: "12px", minWidth: "130px", flexShrink: 0,
-      }}>
+    <div className="flex items-start gap-4">
+      <div className="flex flex-col gap-3 min-w-[130px] flex-shrink-0">
         {stats}
       </div>
-      <div style={{ flex: 1, position: "relative", height: "120px" }}>
+      <div className="flex-1 relative h-[120px]">
         {chart}
       </div>
     </div>
@@ -73,7 +62,7 @@ const SectionCard = ({ title, accent, stats, chart, children }) => (
   </div>
 );
 
-// Enhanced options with hover effects
+// ── Chart options ─────────────────────────────────────────────
 const miniBarOpts = {
   responsive: true,
   maintainAspectRatio: false,
@@ -81,13 +70,13 @@ const miniBarOpts = {
     legend: { display: false },
     tooltip: {
       enabled: true,
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      titleColor: '#fff',
-      bodyColor: '#fff',
+      backgroundColor: "rgba(0,0,0,0.8)",
+      titleColor: "#fff",
+      bodyColor: "#fff",
       padding: 10,
       cornerRadius: 6,
       displayColors: true,
-    }
+    },
   },
   scales: {
     x: {
@@ -101,12 +90,9 @@ const miniBarOpts = {
       border: { display: false },
     },
   },
-  interaction: {
-    mode: 'index',
-    intersect: false,
-  },
+  interaction: { mode: "index", intersect: false },
   onHover: (event, activeElements) => {
-    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+    event.native.target.style.cursor = activeElements.length > 0 ? "pointer" : "default";
   },
 };
 
@@ -118,75 +104,60 @@ const miniDoughnutOpts = {
     legend: { display: false },
     tooltip: {
       enabled: true,
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      titleColor: '#fff',
-      bodyColor: '#fff',
+      backgroundColor: "rgba(0,0,0,0.8)",
+      titleColor: "#fff",
+      bodyColor: "#fff",
       padding: 10,
       cornerRadius: 6,
       displayColors: true,
       callbacks: {
-        label: function(context) {
-          let label = context.label || '';
-          if (label) {
-            label += ': ';
-          }
-          if (context.parsed !== null) {
-            label += context.parsed.toLocaleString();
-          }
+        label: function (context) {
+          let label = context.label || "";
+          if (label) label += ": ";
+          if (context.parsed !== null) label += context.parsed.toLocaleString();
           return label;
-        }
-      }
-    }
+        },
+      },
+    },
   },
-  interaction: {
-    mode: 'point',
-    intersect: true,
-  },
+  interaction: { mode: "point", intersect: true },
   onHover: (event, activeElements) => {
-    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+    event.native.target.style.cursor = activeElements.length > 0 ? "pointer" : "default";
   },
   elements: {
-    arc: {
-      hoverOffset: 6,
-      hoverBorderWidth: 2,
-      hoverBorderColor: '#fff',
-    }
-  }
+    arc: { hoverOffset: 6, hoverBorderWidth: 2, hoverBorderColor: "#fff" },
+  },
 };
 
-const POLL_INTERVAL = 60000; // 60 seconds
+const POLL_INTERVAL = 60000;
 
 const Dashboard = () => {
-  const { isMobile, isTablet } = useWindowSize();
+  const { isMobile } = useWindowSize();
 
-  const [stats, setStats] = useState(null);
-  const [userAnalytics, setUserAnalytics] = useState(null);
+  const [stats, setStats]                   = useState(null);
+  const [userAnalytics, setUserAnalytics]   = useState(null);
   const [feedbackAnalytics, setFeedbackAnalytics] = useState(null);
-  const [txAnalytics, setTxAnalytics] = useState(null);
-  const [goalAnalytics, setGoalAnalytics] = useState(null);
+  const [txAnalytics, setTxAnalytics]       = useState(null);
+  const [goalAnalytics, setGoalAnalytics]   = useState(null);
   const [accountAnalytics, setAccountAnalytics] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  
-  //  Use refresh context
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState("");
+
   const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
 
-  // ── useCallback so interval and button share the same reference ──────
   const fetchAll = useCallback(async () => {
     handleRefreshStart();
     try {
       if (!lastUpdatedRef.current) setLoading(true);
-      const [
-        statsRes, userRes, feedbackRes,
-        txRes, goalRes, accountRes,
-      ] = await Promise.all([
-        api.get("/admin/stats"),
-        api.get("/admin/analytics/users"),
-        api.get("/admin/analytics/feedback"),
-        api.get("/admin/analytics/transactions"),
-        api.get("/admin/analytics/goals"),
-        api.get("/admin/analytics/accounts"),
-      ]);
+      const [statsRes, userRes, feedbackRes, txRes, goalRes, accountRes] =
+        await Promise.all([
+          api.get("/admin/stats"),
+          api.get("/admin/analytics/users"),
+          api.get("/admin/analytics/feedback"),
+          api.get("/admin/analytics/transactions"),
+          api.get("/admin/analytics/goals"),
+          api.get("/admin/analytics/accounts"),
+        ]);
       setStats(statsRes.data.data);
       setUserAnalytics(userRes.data.data);
       setFeedbackAnalytics(feedbackRes.data.data);
@@ -203,12 +174,8 @@ const Dashboard = () => {
     }
   }, [handleRefreshStart, handleRefreshEnd, lastUpdatedRef]);
 
-  // ── Register refresh with context ──────
-  useEffect(() => {
-    registerRefresh(fetchAll);
-  }, [registerRefresh, fetchAll]);
+  useEffect(() => { registerRefresh(fetchAll); }, [registerRefresh, fetchAll]);
 
-  // ── initial load + auto poll every 60s ───────────────────────────────
   useEffect(() => {
     fetchAll();
     const interval = setInterval(fetchAll, POLL_INTERVAL);
@@ -228,20 +195,20 @@ const Dashboard = () => {
     <Layout>
       <Topbar title="Dashboard" subtitle="System overview" />
       <div className="main-content">
-        <div style={{ color: "var(--danger)", padding: "20px" }}>{error}</div>
+        <div className="p-5 text-[var(--danger)]">{error}</div>
       </div>
     </Layout>
   );
 
-  // ── chart data with enhanced hover effects ────────────────────────────
-
+  // ── Chart datasets ────────────────────────────────────────────
+  // 🔵→🟢 Users bar: indigo replaced with green
   const userGrowthData = {
     labels: userAnalytics?.userGrowth?.map((d) => formatMonthLabel(d._id)) || [],
     datasets: [{
       label: "New Users",
       data: userAnalytics?.userGrowth?.map((d) => d.count) || [],
-      backgroundColor: "#4f46e5",
-      hoverBackgroundColor: "#6366f1",
+      backgroundColor: "#16a34a",       // ✅ was #4f46e5 (indigo)
+      hoverBackgroundColor: "#22c55e",  // ✅ was #6366f1
       borderRadius: 4,
       barPercentage: 0.65,
     }],
@@ -250,16 +217,14 @@ const Dashboard = () => {
   const incomeExpenseData = {
     labels: ["Income", "Expense"],
     datasets: [{
-      data: [
-        txAnalytics?.totalIncome || 0,
-        txAnalytics?.totalExpense || 0,
-      ],
+      data: [txAnalytics?.totalIncome || 0, txAnalytics?.totalExpense || 0],
       backgroundColor: ["#10b981", "#ef4444"],
       hoverBackgroundColor: ["#059669", "#dc2626"],
       borderWidth: 0,
     }],
   };
 
+  // 🔵→🟢 Goals chart: indigo (active) replaced with green
   const goalStatusData = {
     labels: ["Active", "Completed", "Overdue"],
     datasets: [{
@@ -268,36 +233,38 @@ const Dashboard = () => {
         goalAnalytics?.completedGoals || 0,
         goalAnalytics?.overdueGoals || 0,
       ],
-      backgroundColor: ["#4f46e5", "#10b981", "#ef4444"],
-      hoverBackgroundColor: ["#6366f1", "#059669", "#dc2626"],
+      backgroundColor: ["#16a34a", "#10b981", "#ef4444"],   // ✅ was #4f46e5
+      hoverBackgroundColor: ["#15803d", "#059669", "#dc2626"],
       borderWidth: 0,
     }],
   };
 
+  // 🔵→🩵 Accounts chart: blue (bank) replaced with teal
   const cashBankData = {
     labels: ["Cash", "Bank"],
     datasets: [{
-      data: [
-        accountAnalytics?.cashBalance || 0,
-        accountAnalytics?.bankBalance || 0,
-      ],
-      backgroundColor: ["#f59e0b", "#3b82f6"],
-      hoverBackgroundColor: ["#d97706", "#2563eb"],
+      data: [accountAnalytics?.cashBalance || 0, accountAnalytics?.bankBalance || 0],
+      backgroundColor: ["#f59e0b", "#0d9488"],   // ✅ was #3b82f6
+      hoverBackgroundColor: ["#d97706", "#0f766e"],
       borderWidth: 0,
     }],
   };
 
+  // 🔵→🟢 Feedback bar: deep blue replaced with green
   const feedbackMonthData = {
     labels: feedbackAnalytics?.feedbackPerMonth?.map((d) => formatMonthLabel(d._id)) || [],
     datasets: [{
       label: "Feedback Count",
       data: feedbackAnalytics?.feedbackPerMonth?.map((d) => d.count) || [],
-      backgroundColor: "#3710b9",
-      hoverBackgroundColor: "#4c1d95",
+      backgroundColor: "#16a34a",       // ✅ was #3710b9 (deep blue)
+      hoverBackgroundColor: "#15803d",  // ✅ was #4c1d95
       borderRadius: 4,
       barPercentage: 0.65,
     }],
   };
+
+  // feedback category dot colors — replaced indigo with green
+  const categoryDotColors = ["#16a34a", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
   const col2 = isMobile ? "1fr" : "1fr 1fr";
 
@@ -307,138 +274,130 @@ const Dashboard = () => {
       <div className="main-content">
 
         {/* ── Row 1: Users + Transactions ── */}
-        <div style={{ display: "grid", gridTemplateColumns: col2, gap: "12px", marginBottom: "12px" }}>
-
+        <div
+          className="grid gap-3 mb-3"
+          style={{ gridTemplateColumns: col2 }}
+        >
+          {/* Users card — accent green instead of indigo */}
           <SectionCard
             title="Users"
-            accent="#4f46e5"
+            accent="#16a34a"          // ✅ was #4f46e5
             stats={
               <>
-                <MiniStat label="Total" value={stats?.totalUsers} />
-                <MiniStat label="Active" value={stats?.activeUsers} color="#10b981" />
-                <MiniStat label="Banned" value={stats?.bannedUsers} color="#ef4444" />
+                <MiniStat label="Total"   value={stats?.totalUsers} />
+                <MiniStat label="Active"  value={stats?.activeUsers}  color="#10b981" />
+                <MiniStat label="Banned"  value={stats?.bannedUsers}  color="#ef4444" />
                 <MiniStat label="Premium" value={stats?.premiumUsers} color="#8b5cf6" />
               </>
             }
             chart={<Bar data={userGrowthData} options={miniBarOpts} />}
           >
-            <div style={{
-              display: "flex", gap: "16px", flexWrap: "wrap",
-              marginTop: "12px", paddingTop: "10px",
-              borderTop: "1px solid var(--border)",
-            }}>
+            <div className="flex gap-4 flex-wrap mt-3 pt-[10px] border-t border-[var(--border)]">
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Scheduled deletion</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "#14b8a6" }}>{stats?.scheduledForDeletion ?? "—"}</div>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Scheduled deletion</div>
+                <div className="text-[15px] font-bold text-[#14b8a6]">{stats?.scheduledForDeletion ?? "—"}</div>
               </div>
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Free users</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text)" }}>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Free users</div>
+                <div className="text-[15px] font-bold text-[var(--text)]">
                   {userAnalytics?.premiumVsFree?.freeUsers ?? "—"}
                 </div>
               </div>
             </div>
           </SectionCard>
 
+          {/* Transactions card */}
           <SectionCard
             title="Transactions"
             accent="#10b981"
             stats={
               <>
-                <MiniStat label="Total" value={txAnalytics?.totalTransactions} />
-                <MiniStat label="Income" value={formatCurrency(txAnalytics?.totalIncome)} color="#10b981" />
+                <MiniStat label="Total"   value={txAnalytics?.totalTransactions} />
+                <MiniStat label="Income"  value={formatCurrency(txAnalytics?.totalIncome)}  color="#10b981" />
                 <MiniStat label="Expense" value={formatCurrency(txAnalytics?.totalExpense)} color="#ef4444" />
               </>
             }
             chart={<Doughnut data={incomeExpenseData} options={miniDoughnutOpts} />}
           >
-            <div style={{
-              display: "flex", gap: "16px", flexWrap: "wrap",
-              marginTop: "12px", paddingTop: "10px",
-              borderTop: "1px solid var(--border)",
-            }}>
+            <div className="flex gap-4 flex-wrap mt-3 pt-[10px] border-t border-[var(--border)]">
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Income count</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "#10b981" }}>{txAnalytics?.incomeCount ?? "—"}</div>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Income count</div>
+                <div className="text-[15px] font-bold text-[#10b981]">{txAnalytics?.incomeCount ?? "—"}</div>
               </div>
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Expense count</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "#ef4444" }}>{txAnalytics?.expenseCount ?? "—"}</div>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Expense count</div>
+                <div className="text-[15px] font-bold text-[#ef4444]">{txAnalytics?.expenseCount ?? "—"}</div>
               </div>
             </div>
           </SectionCard>
         </div>
 
         {/* ── Row 2: Goals + Accounts ── */}
-        <div style={{ display: "grid", gridTemplateColumns: col2, gap: "12px", marginBottom: "12px" }}>
-
+        <div
+          className="grid gap-3 mb-3"
+          style={{ gridTemplateColumns: col2 }}
+        >
+          {/* Goals card */}
           <SectionCard
             title="Goals"
             accent="#8b5cf6"
             stats={
               <>
-                <MiniStat label="Total" value={goalAnalytics?.totalGoals} />
-                <MiniStat label="Active" value={goalAnalytics?.activeGoals} color="#4f46e5" />
-                <MiniStat label="Completed" value={goalAnalytics?.completedGoals} color="#10b981" />
-                <MiniStat label="Overdue" value={goalAnalytics?.overdueGoals} color="#ef4444" />
+                <MiniStat label="Total"     value={goalAnalytics?.totalGoals} />
+                <MiniStat label="Active"    value={goalAnalytics?.activeGoals}     color="#16a34a" /> {/* ✅ was #4f46e5 */}
+                <MiniStat label="Completed" value={goalAnalytics?.completedGoals}  color="#10b981" />
+                <MiniStat label="Overdue"   value={goalAnalytics?.overdueGoals}    color="#ef4444" />
               </>
             }
             chart={<Doughnut data={goalStatusData} options={miniDoughnutOpts} />}
           >
-            <div style={{
-              display: "flex", gap: "16px", flexWrap: "wrap",
-              marginTop: "12px", paddingTop: "10px",
-              borderTop: "1px solid var(--border)",
-            }}>
+            <div className="flex gap-4 flex-wrap mt-3 pt-[10px] border-t border-[var(--border)]">
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Avg completion</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "#8b5cf6" }}>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Avg completion</div>
+                <div className="text-[15px] font-bold text-[#8b5cf6]">
                   {goalAnalytics?.avgCompletionRate
                     ? `${Number(goalAnalytics.avgCompletionRate).toFixed(1)}%`
                     : "—"}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Target amount</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text)" }}>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Target amount</div>
+                <div className="text-[15px] font-bold text-[var(--text)]">
                   {formatCurrency(goalAnalytics?.totalTargetAmount)}
                 </div>
               </div>
             </div>
           </SectionCard>
 
+          {/* Accounts card — blue replaced with teal */}
           <SectionCard
             title="Accounts"
-            accent="#3b82f6"
+            accent="#0d9488"          // ✅ was #3b82f6
             stats={
               <>
-                <MiniStat label="Total" value={accountAnalytics?.totalAccounts} />
-                <MiniStat label="Total balance" value={formatCurrency(accountAnalytics?.totalBalance)} color="#3b82f6" />
-                <MiniStat label="Avg balance" value={formatCurrency(accountAnalytics?.avgBalance)} />
+                <MiniStat label="Total"         value={accountAnalytics?.totalAccounts} />
+                <MiniStat label="Total balance" value={formatCurrency(accountAnalytics?.totalBalance)} color="#0d9488" /> {/* ✅ was #3b82f6 */}
+                <MiniStat label="Avg balance"   value={formatCurrency(accountAnalytics?.avgBalance)} />
               </>
             }
             chart={<Doughnut data={cashBankData} options={miniDoughnutOpts} />}
           >
-            <div style={{
-              display: "flex", gap: "16px", flexWrap: "wrap",
-              marginTop: "12px", paddingTop: "10px",
-              borderTop: "1px solid var(--border)",
-            }}>
+            <div className="flex gap-4 flex-wrap mt-3 pt-[10px] border-t border-[var(--border)]">
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Cash</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "#f59e0b" }}>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Cash</div>
+                <div className="text-[15px] font-bold text-[#f59e0b]">
                   {formatCurrency(accountAnalytics?.cashBalance)}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Bank</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "#3b82f6" }}>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Bank</div>
+                <div className="text-[15px] font-bold text-[#0d9488]"> {/* ✅ was #3b82f6 */}
                   {formatCurrency(accountAnalytics?.bankBalance)}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase" }}>Avg / user</div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text)" }}>
+                <div className="text-[10px] text-[var(--text-muted)] uppercase">Avg / user</div>
+                <div className="text-[15px] font-bold text-[var(--text)]">
                   {accountAnalytics?.avgAccountsPerUser
                     ? Number(accountAnalytics.avgAccountsPerUser).toFixed(1)
                     : "—"}
@@ -448,14 +407,14 @@ const Dashboard = () => {
           </SectionCard>
         </div>
 
-        {/* ── Row 3: Feedback & Rating full width ── */}
+        {/* ── Row 3: Feedback full width ── */}
         <SectionCard
           title="Feedback & Rating"
           accent="#f59e0b"
           stats={
             <>
-              <MiniStat label="Total" value={stats?.totalFeedbacks} />
-              <MiniStat label="This month" value={feedbackAnalytics?.totalFeedbacksThisMonth} color="#f59e0b" />
+              <MiniStat label="Total"           value={stats?.totalFeedbacks} />
+              <MiniStat label="This month"      value={feedbackAnalytics?.totalFeedbacksThisMonth} color="#f59e0b" />
               <MiniStat
                 label="Feedback Rating"
                 value={feedbackAnalytics?.avgRating
@@ -474,19 +433,14 @@ const Dashboard = () => {
           }
           chart={<Bar data={feedbackMonthData} options={miniBarOpts} />}
         >
-          <div style={{
-            display: "flex", gap: "12px", flexWrap: "wrap",
-            marginTop: "12px", paddingTop: "10px",
-            borderTop: "1px solid var(--border)",
-          }}>
+          <div className="flex gap-3 flex-wrap mt-3 pt-[10px] border-t border-[var(--border)]">
             {feedbackAnalytics?.feedbackByCategory?.map((d, i) => (
-              <div key={d._id} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                <div style={{
-                  width: "8px", height: "8px", borderRadius: "2px",
-                  background: ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"][i],
-                  flexShrink: 0,
-                }} />
-                <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+              <div key={d._id} className="flex items-center gap-[5px]">
+                <div
+                  className="w-2 h-2 rounded-[2px] flex-shrink-0"
+                  style={{ background: categoryDotColors[i] }}  // ✅ was #4f46e5 first item
+                />
+                <span className="text-[11px] text-[var(--text-muted)]">
                   {d._id} ({d.count})
                 </span>
               </div>
