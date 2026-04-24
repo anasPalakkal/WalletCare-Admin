@@ -41,6 +41,14 @@ const Alert = ({ msg }) => {
   );
 };
 
+/* ── Role badge colours ── */
+const getRoleMeta = (role = "") => {
+  const r = role.toLowerCase();
+  if (r === "superadmin" || r === "super_admin" || r === "super admin")
+    return { label: "Super Admin", color: "#f59e0b", bg: "rgba(245,158,11,0.18)" };
+  return { label: "Admin", color: "#a78bfa", bg: "rgba(167,139,250,0.18)" };
+};
+
 const Settings = () => {
   const [admin, setAdmin]     = useState(null);
   const [loading, setLoading] = useState(true);
@@ -60,6 +68,23 @@ const Settings = () => {
 
   const { logout } = useAuth();
 
+  /* ── Theme detection ── */
+  const [isDark, setIsDark] = useState(
+    () => document.documentElement.classList.contains("dark") ||
+          document.documentElement.getAttribute("data-theme") === "dark"
+  );
+  useEffect(() => {
+    const el = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setIsDark(
+        el.classList.contains("dark") ||
+        el.getAttribute("data-theme") === "dark"
+      );
+    });
+    observer.observe(el, { attributes: true, attributeFilter: ["class", "data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+
   useEffect(() => { fetchAdminProfile(); }, []);
 
   const fetchAdminProfile = async () => {
@@ -70,7 +95,7 @@ const Settings = () => {
       setAdmin(data);
       setProfileForm({ name: data.name || "", email: data.email || "" });
     } catch {
-      setAdmin({ name: "Admin", email: "" });
+      setAdmin({ name: "Admin", email: "", role: "admin" });
       setProfileForm({ name: "Admin", email: "" });
     } finally {
       setLoading(false);
@@ -141,31 +166,146 @@ const Settings = () => {
     </Layout>
   );
 
+  const roleMeta = getRoleMeta(admin?.role);
+
   return (
     <Layout>
       <Topbar title="Settings" subtitle="Manage your admin account" />
       <div className="main-content">
         <div className="flex flex-col gap-4 max-w-[860px]">
 
-          {/* ── Profile Section ── */}
-          <div className="card">
-            <div className="text-[13px] font-semibold text-[var(--text)] mb-4 pb-3 border-b border-[var(--border)]">
-              Admin Profile
-            </div>
+          {/* ── Profile Card (GreenPouch-style) ── */}
+          <div
+            className="relative overflow-hidden rounded-2xl"
+            style={{
+              background: isDark
+                ? "linear-gradient(135deg, #1a4d3a 0%, #1e6b4a 45%, #155e38 100%)"
+                : "linear-gradient(135deg, #2d7a56 0%, #3a9668 45%, #2a7a50 100%)",
+              minHeight: "160px",
+            }}
+          >
+            {/* Decorative blobs — mirrors the app card */}
+            <div
+              className="absolute rounded-full"
+              style={{
+                width: 180,
+                height: 180,
+                top: -50,
+                right: -30,
+                background: "rgba(255,255,255,0.12)",
+              }}
+            />
+            <div
+              className="absolute rounded-full"
+              style={{
+                width: 110,
+                height: 110,
+                top: 20,
+                right: 60,
+                background: "rgba(255,255,255,0.08)",
+              }}
+            />
+            <div
+              className="absolute rounded-full"
+              style={{
+                width: 80,
+                height: 80,
+                bottom: -20,
+                left: 200,
+                background: "rgba(255,255,255,0.07)",
+              }}
+            />
 
-            {/* Avatar row */}
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-[52px] h-[52px] rounded-full bg-[var(--accent-light)] text-[var(--accent)] flex items-center justify-center text-lg font-bold flex-shrink-0">
+            {/* Card content */}
+            <div className="relative z-10 p-6 flex items-center gap-5">
+              {/* Avatar */}
+              <div
+                className="flex-shrink-0 flex items-center justify-center rounded-full text-xl font-bold"
+                style={{
+                  width: 64,
+                  height: 64,
+                  background: "rgba(255,255,255,0.22)",
+                  border: "2px solid rgba(255,255,255,0.4)",
+                  color: "#fff",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
                 {getInitials(admin?.name)}
               </div>
-              <div>
-                <div className="text-[15px] font-semibold text-[var(--text)]">{admin?.name}</div>
-                <div className="text-xs text-[var(--text-muted)] mt-[2px]">{admin?.email}</div>
-                <span className="badge badge-purple mt-[6px] inline-block">Administrator</span>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="text-[11px] font-medium tracking-widest uppercase mb-1" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  Admin Account
+                </div>
+                <div className="text-[20px] font-bold leading-tight truncate" style={{ color: "#fff" }}>
+                  {admin?.name}
+                </div>
+                <div className="text-[13px] mt-[3px] truncate" style={{ color: "rgba(255,255,255,0.65)" }}>
+                  {admin?.email}
+                </div>
+              </div>
+
+              {/* Role badge — top right */}
+              <div
+                className="flex-shrink-0 self-start px-3 py-[5px] rounded-full text-[11px] font-semibold tracking-wide"
+                style={{
+                  background: roleMeta.bg,
+                  color: roleMeta.color,
+                  border: `1px solid ${roleMeta.color}40`,
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                {roleMeta.label}
               </div>
             </div>
 
-            {/* Fields */}
+            {/* Frosted footer strip — same as "Manage Wallets" bar in app */}
+            <div
+              className="relative z-10 px-6 py-3 flex items-center gap-6"
+              style={{
+                background: "rgba(255,255,255,0.13)",
+                borderTop: "1px solid rgba(255,255,255,0.18)",
+                backdropFilter: "blur(6px)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="rgba(255,255,255,0.5)">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+                <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.55)" }}>
+                  Joined:&nbsp;
+                  <span className="font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>
+                    {admin?.createdAt
+                      ? new Date(admin.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+                      : "—"}
+                  </span>
+                </span>
+              </div>
+
+              {admin?.lastActiveAt && (
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block w-[7px] h-[7px] rounded-full"
+                    style={{ background: "#4ade80", boxShadow: "0 0 6px #4ade80" }}
+                  />
+                  <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.55)" }}>
+                    Last active:&nbsp;
+                    <span className="font-medium" style={{ color: "rgba(255,255,255,0.85)" }}>
+                      {new Date(admin.lastActiveAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Edit Profile ── */}
+          <div className="card">
+            <div className="text-[13px] font-semibold text-[var(--text)] mb-4 pb-3 border-b border-[var(--border)]">
+              Edit Profile
+            </div>
+
             <div className="grid grid-cols-2 gap-[14px]">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-[6px]">Full Name</label>

@@ -145,11 +145,15 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
 
         {/* Admin info + logout */}
         <div className="px-[10px] py-3 border-t border-[var(--border)]">
-          <div className="flex items-center gap-2 px-[10px] py-2 mb-1">
+          <NavLink
+            to="/settings"
+            onClick={isMobile ? onClose : undefined}
+            className="flex items-center gap-2 px-[10px] py-2 mb-1 rounded-lg no-underline transition-all duration-150 group hover:bg-[var(--hover-bg)]"
+          >
             <div className="w-7 h-7 rounded-full bg-[var(--accent-light)] flex items-center justify-center text-[11px] font-semibold text-[var(--accent)] flex-shrink-0">
               {admin?.name?.charAt(0).toUpperCase() || "A"}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="text-xs font-medium text-[var(--text)] whitespace-nowrap overflow-hidden text-ellipsis">
                 {admin?.name || "Admin"}
               </div>
@@ -157,7 +161,13 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
                 {admin?.email || ""}
               </div>
             </div>
-          </div>
+            <svg
+              width="12" height="12" viewBox="0 0 20 20" fill="currentColor"
+              className="flex-shrink-0 opacity-0 group-hover:opacity-40 transition-opacity duration-150"
+            >
+              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            </svg>
+          </NavLink>
 
           <button
             onClick={handleLogoutClick}
