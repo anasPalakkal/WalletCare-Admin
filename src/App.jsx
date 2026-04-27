@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import useHeartbeat from "./hooks/useHeartbeat";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -15,12 +16,18 @@ import CreateAdmin from "./pages/CreateAdmin";
 import ManageAdmins from "./pages/ManageAdmins";
 import { RefreshProvider } from "./context/RefreshContext";
 
+function AppInner() {
+  useHeartbeat();
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
           <RefreshProvider>
+            <AppInner />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
