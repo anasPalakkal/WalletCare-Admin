@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Topbar from "../components/Topbar";
@@ -57,6 +57,98 @@ const UserDetail = () => {
   const [confirm, setConfirm]     = useState(null);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const { registerRefresh, handleRefreshStart, handleRefreshEnd, lastUpdatedRef } = useRefresh();
+
+  // ── Notification panel ─────────────────────────────────────────────────────
+  const [notifPanelOpen, setNotifPanelOpen]     = useState(false);
+  const [templates, setTemplates]               = useState([]);
+  const [templatesLoaded, setTemplatesLoaded]   = useState(false);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showCustomForm, setShowCustomForm]     = useState(false);
+  const [customForm, setCustomForm]             = useState({ title: "", message: "" });
+  const [customSaving, setCustomSaving]         = useState(false);
+  const [notifSending, setNotifSending]         = useState(false);
+  const [notifToast, setNotifToast]             = useState(null);
+
+  const showNotifToast = (type, msg) => { setNotifToast({ type, msg }); setTimeout(() => setNotifToast(null), 3500); };
+
+  // Inject dark-mode-aware scrollbar CSS once
+  useEffect(() => {
+    if (document.getElementById("notif-scroll-style")) return;
+    const tag = document.createElement("style");
+    tag.id = "notif-scroll-style";
+    tag.textContent = `
+      .notif-scroll::-webkit-scrollbar { width: 5px; }
+      .notif-scroll::-webkit-scrollbar-track { background: transparent; }
+      .notif-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+      .notif-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    `;
+    document.head.appendChild(tag);
+  }, []);
+
+  // Write a sent notification into the shared localStorage history (same key as Notifications page)
+  const pushToHistory = (notif, userName) => {
+    try {
+      const HISTORY_KEY = "walletcare_notif_history";
+      const existing = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+      const entry = {
+        _id:     `h_${Date.now()}`,
+        title:   notif.title,
+        message: notif.message,
+        filter:  `user:${userName}`,   // custom label so history shows who it went to
+        sentAt:  new Date().toISOString(),
+        result:  { sent: 1, failed: 0 },
+      };
+      localStorage.setItem(HISTORY_KEY, JSON.stringify([entry, ...existing].slice(0, 50)));
+    } catch { /* storage full — skip */ }
+  };
+
+  const loadTemplates = useCallback(async () => {
+    if (templatesLoaded) return;
+    setTemplatesLoading(true);
+    try {
+      const res = await api.get("/admin/notification-templates");
+      setTemplates(res.data.data || []);
+      setTemplatesLoaded(true);
+    } catch { showNotifToast("error", "Failed to load templates."); }
+    finally { setTemplatesLoading(false); }
+  }, [templatesLoaded]);
+
+  const handleOpenNotifPanel = () => {
+    setNotifPanelOpen((v) => { if (!v) loadTemplates(); return !v; });
+  };
+
+  const handleSaveCustom = async () => {
+    if (!customForm.title.trim() || !customForm.message.trim()) return;
+    setCustomSaving(true);
+    try {
+      const res = await api.post("/admin/notification-templates", {
+        title: customForm.title.trim(), message: customForm.message.trim(), filter: "active",
+      });
+      const t = res.data.data;
+      setTemplates((prev) => [t, ...prev]);
+      setSelectedTemplate(t._id);
+      setCustomForm({ title: "", message: "" });
+      setShowCustomForm(false);
+      showNotifToast("success", "Template saved. Select it and Send.");
+    } catch (err) {
+      showNotifToast("error", err.response?.data?.message || "Failed to save.");
+    } finally { setCustomSaving(false); }
+  };
+
+  const handleSendNotif = async () => {
+    const notif = templates.find((t) => t._id === selectedTemplate);
+    if (!notif) return;
+    setNotifSending(true);
+    try {
+      await api.post("/admin/notifications/send", { userId: id, title: notif.title, message: notif.message });
+      pushToHistory(notif, user?.name || id);
+      showNotifToast("success", `Sent "${notif.title}" to ${user?.name}.`);
+      setSelectedTemplate(null);
+    } catch (err) {
+      showNotifToast("error", err.response?.data?.message || "Failed to send.");
+    } finally { setNotifSending(false); }
+  };
 
   const fetchAll = useCallback(async () => {
     handleRefreshStart();
@@ -196,6 +288,118 @@ const UserDetail = () => {
                 <button className="btn text-xs" disabled={actionLoading === "logout"} onClick={() => setConfirm({ action: "logout" })}>
                   {actionLoading === "logout" ? "Processing..." : "Force Logout"}
                 </button>
+              </div>
+
+              {/* ── Send Notification ───────────────────────────────────── */}
+              <div className="p-[14px] rounded-lg bg-[var(--bg)] border border-[var(--border)]">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-xs font-medium text-[var(--text)]">Send Notification</div>
+                  {notifToast && (
+                    <span className={`text-[10px] px-[6px] py-[1px] rounded-[4px] font-medium ${notifToast.type === "success" ? "bg-[var(--success-light)] text-[var(--success)]" : "bg-[var(--danger-light)] text-[var(--danger)]"}`}>
+                      {notifToast.msg}
+                    </span>
+                  )}
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)] mb-[10px]">Send a direct notification to this user</div>
+
+                <button className="btn text-xs flex items-center gap-[6px]" onClick={handleOpenNotifPanel}>
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zm0 16a2 2 0 01-2-2h4a2 2 0 01-2 2z" />
+                  </svg>
+                  {notifPanelOpen ? "Hide" : "Open Notifications"}
+                </button>
+
+                {notifPanelOpen && (
+                  <div className="mt-[12px] flex flex-col gap-[10px]">
+
+                    {/* Template list — scrollable */}
+                    <div>
+                      <div className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.5px] mb-[6px]">Select Template</div>
+                      {templatesLoading ? (
+                        <div className="text-[11px] text-[var(--text-muted)] text-center py-4">Loading...</div>
+                      ) : templates.length === 0 ? (
+                        <div className="text-[11px] text-[var(--text-muted)] text-center py-4 bg-[var(--bg)] rounded-[7px] border border-dashed border-[var(--border)]">
+                          No saved templates. Create a custom one below.
+                        </div>
+                      ) : (
+                        <div
+                          className="notif-scroll flex flex-col gap-[6px] overflow-y-auto pr-[2px]"
+                          style={{ maxHeight: 200 }}
+                        >
+                          {templates.map((t) => (
+                            <div
+                              key={t._id}
+                              onClick={() => setSelectedTemplate(t._id === selectedTemplate ? null : t._id)}
+                              className={`flex items-start gap-2 p-[10px] rounded-[7px] border cursor-pointer transition-all ${
+                                selectedTemplate === t._id
+                                  ? "border-[var(--accent)] bg-[var(--accent-light)]"
+                                  : "border-[var(--border)] hover:border-[var(--accent)]"
+                              }`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="text-[11px] font-semibold text-[var(--text)] truncate">{t.title}</div>
+                                <div className="text-[10px] text-[var(--text-muted)] mt-[2px] line-clamp-1">{t.message}</div>
+                              </div>
+                              {selectedTemplate === t._id && (
+                                <svg width="12" height="12" viewBox="0 0 20 20" fill="var(--accent)" className="flex-shrink-0 mt-[2px]">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Send button */}
+                    {selectedTemplate && (
+                      <button className="btn btn-primary w-full text-xs" onClick={handleSendNotif} disabled={notifSending}>
+                        {notifSending ? "Sending..." : `Send to ${user?.name}`}
+                      </button>
+                    )}
+
+                    {/* Custom notification */}
+                    <button
+                      className="btn text-xs w-full flex items-center justify-center gap-[5px]"
+                      onClick={() => setShowCustomForm((v) => !v)}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                      {showCustomForm ? "Cancel" : "Custom Notification"}
+                    </button>
+
+                    {showCustomForm && (
+                      <div className="flex flex-col gap-[8px] pt-[8px] border-t border-[var(--border)]">
+                        <div className="text-[10px] text-[var(--text-muted)]">This will be saved as a template and also appear in the Notifications page.</div>
+                        <input
+                          type="text"
+                          value={customForm.title}
+                          onChange={(e) => setCustomForm((f) => ({ ...f, title: e.target.value }))}
+                          placeholder="Title"
+                          maxLength={100}
+                          className="input w-full text-xs"
+                          autoFocus
+                        />
+                        <textarea
+                          value={customForm.message}
+                          onChange={(e) => setCustomForm((f) => ({ ...f, message: e.target.value }))}
+                          placeholder="Message..."
+                          maxLength={255}
+                          rows={3}
+                          className="input w-full resize-none text-xs"
+                        />
+                        <button
+                          className="btn btn-primary w-full text-xs"
+                          onClick={handleSaveCustom}
+                          disabled={customSaving || !customForm.title.trim() || !customForm.message.trim()}
+                        >
+                          {customSaving ? "Saving..." : "Save & Add to List"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {user?.scheduledDeletionAt && (
