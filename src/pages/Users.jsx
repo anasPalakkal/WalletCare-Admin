@@ -26,12 +26,12 @@ const Users = () => {
 
   useEffect(() => {
     const p = searchParams.get("filter");
-    if (p && ["all","active","banned","scheduled","premium"].includes(p)) setFilter(p);
+    if (p && ["all","thismonth","banned","scheduled","premium"].includes(p)) setFilter(p);
   }, [searchParams]);
 
   useEffect(() => {
     const p = searchParams.get("filter");
-    if (p && ["all","active","banned","scheduled","premium"].includes(p)) setFilter(p);
+    if (p && ["all","thismonth","banned","scheduled","premium"].includes(p)) setFilter(p);
   }, [location]);
 
   const fetchUsers = useCallback(async () => {
@@ -69,34 +69,52 @@ const Users = () => {
     }
   };
 
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
   const filteredUsers = users.filter((u) => {
     const m = u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase());
     if (filter === "all")       return m;
-    if (filter === "active")    return m && !u.isBanned && !u.scheduledDeletionAt;
+    if (filter === "thismonth") return m && new Date(u.createdAt) >= startOfMonth;
     if (filter === "banned")    return m && u.isBanned;
     if (filter === "scheduled") return m && u.scheduledDeletionAt;
     if (filter === "premium")   return m && u.isPremium;
     return m;
   });
 
-  const totalPages    = Math.ceil(filteredUsers.length / usersPerPage);
+  const totalPages     = Math.ceil(filteredUsers.length / usersPerPage);
   const paginatedUsers = filteredUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
   const counts = {
-    all:       users.length,
-    active:    users.filter((u) => !u.isBanned && !u.scheduledDeletionAt).length,
-    banned:    users.filter((u) => u.isBanned).length,
-    scheduled: users.filter((u) => u.scheduledDeletionAt).length,
-    premium:   users.filter((u) => u.isPremium).length,
+    all:        users.length,
+    thismonth:  users.filter((u) => new Date(u.createdAt) >= startOfMonth).length,
+    banned:     users.filter((u) => u.isBanned).length,
+    scheduled:  users.filter((u) => u.scheduledDeletionAt).length,
+    premium:    users.filter((u) => u.isPremium).length,
   };
 
-  // ✅ "All" tab: #4f46e5 → #16a34a
   const filterTabs = [
-    { key: "all",       label: "All",               color: "#16a34a" },
-    { key: "active",    label: "Active",             color: "#10b981" },
-    { key: "banned",    label: "Banned",             color: "#ef4444" },
-    { key: "scheduled", label: "Scheduled Deletion", color: "#14b8a6" },
-    { key: "premium",   label: "Premium",            color: "#8b5cf6" },
+    {
+      key: "all", label: "All Users", color: "#16a34a",
+      icon: <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="#16a34a" strokeWidth="1.5"/><path d="M6 10l3 3 5-5" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    },
+    {
+      key: "thismonth", label: "This Month", color: "#10b981",
+      icon: <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><rect x="3" y="4" width="14" height="13" rx="2" stroke="#10b981" strokeWidth="1.5"/><path d="M3 8h14M7 2v4M13 2v4" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+    },
+    {
+      key: "premium", label: "Premium", color: "#8b5cf6",
+      icon: <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><path d="M10 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L10 14.4l-4.8 2.5.9-5.4L2.2 7.7l5.4-.8z" stroke="#8b5cf6" strokeWidth="1.5" strokeLinejoin="round"/></svg>,
+    },
+    {
+      key: "banned", label: "Banned", color: "#ef4444",
+      icon: <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="#ef4444" strokeWidth="1.5"/><path d="M7 7l6 6M13 7l-6 6" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+    },
+    {
+      key: "scheduled", label: "Scheduled Del.", color: "#f59e0b",
+      icon: <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="#f59e0b" strokeWidth="1.5"/><path d="M10 6v4l2.5 2.5" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+    },
   ];
 
   const formatDate = (date) =>
@@ -105,32 +123,101 @@ const Users = () => {
   const getInitials = (name) =>
     name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "U";
 
-  if (loading) return <Layout><Topbar title="Users" subtitle="Manage all user accounts" /><div className="main-content"><div className="loading">Loading users...</div></div></Layout>;
-  if (error)   return <Layout><Topbar title="Users" subtitle="Manage all user accounts" /><div className="main-content"><div className="text-[var(--danger)]">{error}</div></div></Layout>;
+  // Avatar with online dot in bottom-right corner (Instagram style)
+  const UserAvatar = ({ name, isOnline }) => (
+    <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+      <div
+        className="flex items-center justify-center text-[11px] font-semibold"
+        style={{
+          width: "32px",
+          height: "32px",
+          borderRadius: "50%",
+          background: "var(--accent-light)",
+          color: "var(--accent)",
+        }}
+      >
+        {getInitials(name)}
+      </div>
+      <span
+        title={isOnline ? "Online" : "Offline"}
+        style={{
+          position: "absolute",
+          bottom: "0px",
+          right: "0px",
+          width: "8px",
+          height: "8px",
+          borderRadius: "50%",
+          background: isOnline ? "#10b981" : "#9ca3af",
+          border: "2px solid var(--card-bg)",
+          boxShadow: isOnline ? "0 0 0 2px rgba(16,185,129,0.25)" : "none",
+          animation: isOnline ? "pulse-dot 2s infinite" : "none",
+        }}
+      />
+    </div>
+  );
+
+  if (loading) return (
+    <Layout>
+      <Topbar title="Users" subtitle="Manage all user accounts" />
+      <div className="main-content"><div className="loading">Loading users...</div></div>
+    </Layout>
+  );
+
+  if (error) return (
+    <Layout>
+      <Topbar title="Users" subtitle="Manage all user accounts" />
+      <div className="main-content"><div className="text-[var(--danger)]">{error}</div></div>
+    </Layout>
+  );
 
   return (
     <Layout>
+      {/* Pulse animation for online dot */}
+      <style>{`
+        @keyframes pulse-dot {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+          50%       { box-shadow: 0 0 0 3px rgba(16,185,129,0); }
+        }
+      `}</style>
+
       <Topbar title="Users" subtitle="Manage all user accounts" />
       <div className="main-content">
 
-        {/* Filter tabs */}
-        <div
-          className="grid gap-[10px] mb-5"
-          style={{ gridTemplateColumns: isMobile ? "repeat(2,minmax(0,1fr))" : isTablet ? "repeat(3,minmax(0,1fr))" : "repeat(5,minmax(0,1fr))" }}
-        >
+        {/* Filter chips — Option L */}
+        <div className="flex flex-wrap gap-[10px] mb-5">
           {filterTabs.map((tab) => (
             <div
               key={tab.key}
               onClick={() => setFilter(tab.key)}
-              className="card cursor-pointer"
+              className="flex items-center gap-3 cursor-pointer select-none"
               style={{
-                borderTop: `3px solid ${tab.color}`,
-                opacity: filter === tab.key ? 1 : 0.7,
-                outline: filter === tab.key ? `2px solid ${tab.color}` : "none",
+                padding: "10px 18px 10px 12px",
+                borderRadius: "10px",
+                border: filter === tab.key ? `1.5px solid ${tab.color}` : "0.5px solid var(--border)",
+                background: "var(--card-bg)",
+                transition: "border-color 0.15s, transform 0.12s",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.borderColor = tab.color; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = filter === tab.key ? tab.color : "var(--border)"; }}
             >
-              <div className="text-[11px] text-[var(--text-muted)] mb-[6px]">{tab.label}</div>
-              <div className="text-[22px] font-bold text-[var(--text)]">{counts[tab.key]}</div>
+              <div
+                style={{
+                  width: "38px", height: "38px", borderRadius: "8px",
+                  background: `${tab.color}1a`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                {tab.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.04em", lineHeight: 1, marginBottom: "4px" }}>
+                  {tab.label}
+                </div>
+                <div style={{ fontSize: "22px", fontWeight: 500, color: filter === tab.key ? tab.color : "var(--text)", lineHeight: 1 }}>
+                  {counts[tab.key]}
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -164,15 +251,22 @@ const Users = () => {
               </thead>
               <tbody>
                 {filteredUsers.length === 0 ? (
-                  <tr><td colSpan="6" className="text-center text-[var(--text-muted)] p-[30px]">No users found</td></tr>
+                  <tr>
+                    <td colSpan="6" className="text-center text-[var(--text-muted)] p-[30px]">No users found</td>
+                  </tr>
                 ) : (
                   paginatedUsers.map((user) => (
-                    <tr key={user._id}>
+                    <tr
+                      key={user._id}
+                      onClick={() => navigate(`/users/${user._id}`)}
+                      style={{ cursor: "pointer" }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg)"}
+                      onMouseLeave={(e) => e.currentTarget.style.background = ""}
+                    >
+                      {/* User — avatar with online dot + name */}
                       <td>
                         <div className="flex items-center gap-[10px]">
-                          <div className="w-8 h-8 rounded-full bg-[var(--accent-light)] text-[var(--accent)] flex items-center justify-center text-[11px] font-semibold flex-shrink-0">
-                            {getInitials(user.name)}
-                          </div>
+                          <UserAvatar name={user.name} isOnline={user.isOnline} />
                           <div>
                             <div className="font-medium text-[13px] text-[var(--text)]">{user.name}</div>
                             {user.scheduledDeletionAt && (
@@ -181,27 +275,32 @@ const Users = () => {
                           </div>
                         </div>
                       </td>
+
+                      {/* Email */}
                       <td className="text-[var(--text-muted)] text-xs">{user.email}</td>
+
+                      {/* Status badge */}
                       <td>
-                        {user.isBanned ? <span className="badge badge-danger">Banned</span>
-                          : user.scheduledDeletionAt ? <span className="badge badge-warning">Scheduled</span>
-                          : <span className="badge badge-success">Active</span>}
+                        {user.isBanned
+                          ? <span className="badge badge-danger">Banned</span>
+                          : user.scheduledDeletionAt
+                          ? <span className="badge badge-warning">Scheduled</span>
+                          : <span className="badge badge-success">Not Banned</span>}
                       </td>
+
+                      {/* Plan badge */}
                       <td>
                         {user.isPremium
                           ? <span className="badge badge-purple">Premium</span>
                           : <span className="badge" style={{ background: "var(--bg)", color: "var(--text-muted)", border: "1px solid var(--border)" }}>Free</span>}
                       </td>
+
+                      {/* Joined date */}
                       <td className="text-[var(--text-muted)] text-xs">{formatDate(user.createdAt)}</td>
-                      <td>
+
+                      {/* Actions */}
+                      <td onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-[6px] flex-wrap">
-                          <button
-                            className="btn"
-                            style={{ fontSize: "11px", padding: "4px 10px" }}
-                            onClick={() => navigate(`/users/${user._id}`)}
-                          >
-                            View
-                          </button>
                           {user.isBanned ? (
                             <button
                               className="btn btn-success"
@@ -232,7 +331,7 @@ const Users = () => {
                           {user.scheduledDeletionAt && (
                             <button
                               className="btn btn-success"
-                              style={{ fontSize: "11px", padding: "4px 10px" }}
+                              style={{ fontSize: "11px", padding: "4px 10px", whiteSpace: "nowrap" }}
                               disabled={actionLoading === user._id + "restore"}
                               onClick={() => setConfirm({ action: "restore", user })}
                             >

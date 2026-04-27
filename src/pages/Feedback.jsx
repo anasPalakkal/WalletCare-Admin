@@ -216,8 +216,8 @@ const AdminFeedback = () => {
                     <td className="text-[var(--text-muted)] text-xs whitespace-nowrap">{formatDate(fb.createdAt)}</td>
                     <td>
                       <div className="flex gap-[6px]">
-                        <button className="btn text-[11px] px-[10px] py-1" onClick={() => openDetail(fb)}>View</button>
-                        <button className="btn btn-danger text-[11px] px-[10px] py-1" onClick={() => setConfirmDelete(fb)}>Delete</button>
+                        <button className="btn" style={{ fontSize: "11px", padding: "4px 10px" }} onClick={() => openDetail(fb)}>View</button>
+                        <button className="btn btn-danger" style={{ fontSize: "11px", padding: "4px 10px" }} onClick={() => setConfirmDelete(fb)}>Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -232,15 +232,15 @@ const AdminFeedback = () => {
                   Showing {((currentPage - 1) * perPage) + 1}–{Math.min(currentPage * perPage, filtered.length)} of {filtered.length}
                 </div>
                 <div className="flex gap-1">
-                  <button className="btn text-xs px-[10px] py-1" disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>Prev</button>
+                  <button className="btn" style={{ fontSize: "12px", padding: "4px 10px" }} disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>Prev</button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
                     .reduce((acc, p, idx, arr) => { if (idx > 0 && p - arr[idx - 1] > 1) acc.push("..."); acc.push(p); return acc; }, [])
                     .map((p, idx) =>
                       p === "..." ? <span key={idx} className="px-[6px] py-1 text-xs text-[var(--text-muted)]">...</span>
-                        : <button key={p} className="btn text-xs px-[10px] py-1" style={{ background: currentPage === p ? "var(--accent)" : "", color: currentPage === p ? "white" : "", borderColor: currentPage === p ? "var(--accent)" : "" }} onClick={() => setCurrentPage(p)}>{p}</button>
+                        : <button key={p} className="btn" style={{ fontSize: "12px", padding: "4px 10px", background: currentPage === p ? "var(--accent)" : "", color: currentPage === p ? "white" : "", borderColor: currentPage === p ? "var(--accent)" : "" }} onClick={() => setCurrentPage(p)}>{p}</button>
                     )}
-                  <button className="btn text-xs px-[10px] py-1" disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</button>
+                  <button className="btn" style={{ fontSize: "12px", padding: "4px 10px" }} disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</button>
                 </div>
               </div>
             )}
