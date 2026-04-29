@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import logo from "../assets/PanelLogo.jpeg";
+import logo from "../assets/PanelLogo.png";
 
 const Sidebar = ({ isMobile, isOpen, onClose }) => {
   const { admin, logout } = useAuth();
@@ -65,11 +65,11 @@ const Sidebar = ({ isMobile, isOpen, onClose }) => {
         {/* Logo + close button */}
         <div className="px-4 py-5 border-b border-[var(--border)] flex items-center justify-between">
           <div className="flex items-center gap-[10px]">
-            <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-              <img src={logo} alt="GreenPouch Logo" className="w-full h-full object-cover" />
+            <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center">
+              <img src={logo} alt="GreenPouch Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-[var(--text)]">
+              <div className="font-semibold text-base text-[var(--text)]">
                 <span className="text-green-500">Green</span>
                 <span>Pouch</span>
               </div>

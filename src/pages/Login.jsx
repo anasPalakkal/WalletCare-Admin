@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../api/axios";
-import logo from "../assets/PanelLogo.jpeg";
+import logo from "../assets/PanelLogo.png";
 
 const Login = () => {
   const { login } = useAuth();
@@ -41,12 +41,11 @@ const Login = () => {
 
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
           <div style={{
-            width: "44px", height: "44px",
-            borderRadius: "12px", display: "flex", alignItems: "center",
+            width: "60px", height: "42px",
+            display: "flex", alignItems: "center",
             justifyContent: "center", margin: "0 auto 12px",
-            overflow: "hidden"
           }}>
-            <img src={logo} alt="GreenPouch Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={logo} alt="GreenPouch Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           </div>
           <h1 style={{ fontSize: "20px", fontWeight: "600", color: "var(--text)" }}>
             <span style={{ color: "#22c55e" }}>Green</span>
